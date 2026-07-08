@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}BillFlow - Trash Bin{% endblock %}
+
+{% block section_title %}Trash Bin{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h1 style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0;">Soft Deleted Invoices</h1>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Invoices stored in trash can be restored or permanently deleted.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        {% if invoices %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Invoice No.</th>
+                        <th>Customer / Company</th>
+                        <th>Total Amount</th>
+                        <th>Deleted At</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr>
+                            <td><strong>{{ invoice.invoice_number }}</strong></td>
+                            <td>{{ invoice.client_name }}</td>
+                            <td><strong>₹{{ "{:,.2f}".format(invoice.total_amount) }}</strong></td>
+                            <td>{{ invoice.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if invoice.deleted_at else 'Unknown' }}</td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 8px;">
+                                    <form action="{{ url_for('restore_invoice', invoice_id=invoice.id) }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px;">
+                                            Restore
+                                        </button>
+                                    </form>
+                                    <form action="{{ url_for('delete_invoice_permanent', invoice_id=invoice.id) }}" method="POST" onsubmit="return confirm('WARNING: Permanently delete this invoice? This action CANNOT be undone.');" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; color: var(--error); border-color: rgba(239, 68, 68, 0.2);">
+                                            Delete Permanent
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div style="text-align: center; padding: 40px 20px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 48px; height: 48px; color: var(--text-light); margin-bottom: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0;">Trash Bin is Empty</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Soft-deleted invoices will appear here.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

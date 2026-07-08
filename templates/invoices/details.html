@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}BillFlow - Invoice {{ invoice.invoice_number }}{% endblock %}
+
+{% block section_title %}Invoice Details{% endblock %}
+
+{% block content %}
+<!-- Print media styling block -->
+<style>
+    @media print {
+        aside.sidebar, header.top-bar, .no-print, .alert-container, .btn, form {
+            display: none !important;
+        }
+        .main-wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        body, .content-body {
+            background-color: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #fff !important;
+        }
+        .print-layout-container {
+            display: block !important;
+        }
+        .print-cols {
+            display: block !important;
+        }
+        .print-col-right {
+            display: none !important;
+        }
+        .print-invoice-sheet {
+            width: 100% !important;
+            max-width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+    }
+</style>
+
+<!-- Details Page Toolbar (Hidden during print) -->
+<div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <a href="{{ url_for('list_invoices') }}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); text-decoration: none; font-weight: 500;">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Invoices
+        </a>
+        <h1 style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 6px 0 0 0;">
+            Manage Invoice: {{ invoice.invoice_number }}
+        </h1>
+    </div>
+    
+    <!-- Action buttons row -->
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- Status Update Selector Form (Step 5) -->
+        <form action="{{ url_for('update_invoice_status', invoice_id=invoice.id) }}" method="POST" style="margin: 0; display: inline-flex; align-items: center; gap: 8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="status" class="form-control" onchange="this.form.submit()" style="font-size: 12px; padding: 6px 12px; height: 32px; width: 120px; font-weight: 600;">
+                <option value="Draft" {% if invoice.status == 'Draft' %}selected{% endif %}>Draft</option>
+                <option value="Sent" {% if invoice.status == 'Sent' %}selected{% endif %}>Sent</option>
+                <option value="Pending" {% if invoice.status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Paid" {% if invoice.status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Overdue" {% if invoice.status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Cancelled" {% if invoice.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </form>
+
+        <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" style="height: 32px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+            Edit
+        </a>
+        <button onclick="window.print()" class="btn btn-secondary btn-sm" style="height: 32px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+            Print
+        </button>
+        <a href="{{ url_for('download_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" style="height: 32px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+            Download PDF
+        </a>
+        
+        <!-- Send Email Action (Step 10) -->
+        <form action="{{ url_for('email_invoice_pdf', invoice_id=invoice.id) }}" method="POST" style="margin: 0; display: inline-flex;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm" style="height: 32px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+                Send Email
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Main Details Layout columns -->
+<div class="print-cols" style="display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: The Invoice Sheet Presentation -->
+    <div class="card print-invoice-sheet" style="padding: 40px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+        
+        <!-- Header Banner -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border-color); padding-bottom: 30px; margin-bottom: 30px;">
+            <div>
+                <!-- Brand logo if configured -->
+                {% if company and company.logo_path %}
+                    <img src="/static/uploads/{{ company.logo_path }}" alt="Logo" style="max-height: 50px; margin-bottom: 12px; display: block;">
+                {% endif %}
+                <h2 style="font-size: 24px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.5px;">
+                    {{ company.name if company else "Company Settings Missing" }}
+                </h2>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; white-space: pre-line;">
+                    {{ company.address if company }}
+                    Email: {{ company.email if company }} | Phone: {{ company.phone if company }}
+                    {% if company and company.gstin %}GSTIN: {{ company.gstin }}{% endif %}
+                </p>
+            </div>
+            
+            <div style="text-align: right;">
+                <span class="status-badge status-badge-{{ invoice.status|lower }}" style="font-size: 11px; margin-bottom: 12px;">{{ invoice.status }}</span>
+                <h3 style="font-size: 20px; font-weight: 700; color: var(--primary); margin: 0;">INVOICE</h3>
+                <p style="font-size: 12px; color: var(--text-primary); margin: 6px 0 2px 0;"><strong>No:</strong> {{ invoice.invoice_number }}</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin: 0;"><strong>Date:</strong> {{ invoice.date_created.strftime('%Y-%m-%d') }}</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">
+                    <strong>Due Date:</strong> 
+                    {% if invoice.status != 'Paid' and invoice.due_date < today_date %}
+                        <span style="color: var(--error); font-weight: 700;">{{ invoice.due_date.strftime('%Y-%m-%d') }} (Overdue)</span>
+                    {% else %}
+                        {{ invoice.due_date.strftime('%Y-%m-%d') }}
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- B2B Billing Columns -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;">
+            <div>
+                <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px;">Bill To:</h4>
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ invoice.client_name }}</h3>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.6; white-space: pre-line;">
+                    {{ invoice.client_address }}
+                    Email: {{ invoice.client_email }}
+                    {% if invoice.client_phone %}| Phone: {{ invoice.client_phone }}{% endif %}
+                    {% if invoice.client_gstin %}<br><strong>GSTIN:</strong> {{ invoice.client_gstin }}{% endif %}
+                </p>
+            </div>
+            
+            {% if company and company.pref_show_bank_details and company.bank_name and company.bank_account %}
+                <div style="text-align: right; font-size: 11px; line-height: 1.6; color: var(--text-muted);">
+                    <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px; text-align: right;">Payment Instructions:</h4>
+                    <p>
+                        <strong>Account Name:</strong> {{ company.bank_account_name if company.bank_account_name else company.name }}<br>
+                        <strong>Bank:</strong> {{ company.bank_name }}<br>
+                        <strong>Account No:</strong> {{ company.bank_account }}<br>
+                        <strong>IFSC Code:</strong> {{ company.bank_ifsc }}
+                        {% if company.bank_branch %}<br><strong>Branch:</strong> {{ company.bank_branch }}{% endif %}
+                        {% if company.upi_id %}<br><strong>UPI ID:</strong> {{ company.upi_id }}{% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Items Table Grid -->
+        <table class="table" style="margin-bottom: 30px; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); background-color: #f8fafc;">
+                    <th style="padding: 10px; text-align: left;">Item / Description</th>
+                    {% if has_hsn %}
+                        <th style="padding: 10px; text-align: left; width: 90px;">HSN/SAC</th>
+                    {% endif %}
+                    <th style="padding: 10px; text-align: center; width: 60px;">Qty</th>
+                    <th style="padding: 10px; text-align: right; width: 110px;">Unit Price</th>
+                    <th style="padding: 10px; text-align: right; width: 110px;">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.items %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 10px; text-align: left; font-weight: 500;">{{ item.description }}</td>
+                        {% if has_hsn %}
+                            <td style="padding: 10px; text-align: left; color: var(--text-muted);">{{ item.hsn_sac if item.hsn_sac else '-' }}</td>
+                        {% endif %}
+                        <td style="padding: 10px; text-align: center;">{{ item.quantity }}</td>
+                        <td style="padding: 10px; text-align: right;">₹{{ "{:,.2f}".format(item.unit_price) }}</td>
+                        <td style="padding: 10px; text-align: right;">₹{{ "{:,.2f}".format(item.total) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- HSN Summary Table -->
+        {% if (not company or company.pref_show_hsn_summary) and has_hsn %}
+        <div style="margin-top: 20px; margin-bottom: 30px;">
+            <h4 style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">HSN/SAC Summary</h4>
+            <table class="table" style="font-size: 11px; border-collapse: collapse; width: 100%;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border-color); background-color: #f8fafc; font-weight: bold; color: var(--text-muted);">
+                        <th style="padding: 8px 10px; text-align: left;">HSN/SAC</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 100px;">Taxable Value</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 85px;">CGST</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 85px;">SGST</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 85px;">IGST</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 100px;">Total Tax</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code, data in hsn_groups.items() %}
+                    <tr style="border-bottom: 1px dashed var(--border-color);">
+                        <td style="padding: 8px 10px; text-align: left; font-weight: 600;">{{ code }}</td>
+                        <td style="padding: 8px 10px; text-align: right;">₹{{ "{:,.2f}".format(data.taxable_value) }}</td>
+                        <td style="padding: 8px 10px; text-align: right;">₹{{ "{:,.2f}".format(data.cgst) }}</td>
+                        <td style="padding: 8px 10px; text-align: right;">₹{{ "{:,.2f}".format(data.sgst) }}</td>
+                        <td style="padding: 8px 10px; text-align: right;">₹{{ "{:,.2f}".format(data.igst) }}</td>
+                        <td style="padding: 8px 10px; text-align: right; font-weight: 600;">₹{{ "{:,.2f}".format(data.total_tax) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Summary & Math Blocks -->
+        <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; margin-top: 10px;">
+            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+                {% if company and company.pref_show_terms and company.terms_conditions %}
+                    <h5 style="font-weight: 700; color: var(--text-primary); text-transform: uppercase; margin-bottom: 4px; margin-top: 0;">Terms & Conditions:</h5>
+                    <p style="white-space: pre-line; margin-bottom: 16px; margin-top: 0;">{{ company.terms_conditions }}</p>
+                {% endif %}
+                
+                {% if (not company or company.pref_show_notes) and invoice.notes %}
+                    <h5 style="font-weight: 700; color: var(--text-primary); text-transform: uppercase; margin-bottom: 4px; margin-top: 0;">Notes:</h5>
+                    <p style="white-space: pre-line; margin-top: 0;">{{ invoice.notes }}</p>
+                {% endif %}
+            </div>
+            
+            <div style="text-align: right; font-size: 13px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 6px 0; color: var(--text-muted); text-align: right;">Subtotal:</td>
+                        <td style="padding: 6px 0; font-weight: 600; text-align: right; width: 130px;">₹{{ "{:,.2f}".format(invoice.subtotal) }}</td>
+                    </tr>
+                    {% if invoice.discount > 0 %}
+                        <tr>
+                            <td style="padding: 6px 0; color: var(--text-muted); text-align: right;">Discount ({{ invoice.discount }}%):</td>
+                            <td style="padding: 6px 0; font-weight: 600; text-align: right; color: var(--error);">
+                                -₹{{ "{:,.2f}".format(invoice.subtotal * (invoice.discount / 100)) }}
+                            </td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td style="padding: 6px 0; color: var(--text-muted); text-align: right;">GST Tax ({{ invoice.gst_rate }}%):</td>
+                        <td style="padding: 6px 0; font-weight: 600; text-align: right;">₹{{ "{:,.2f}".format(invoice.tax_amount) }}</td>
+                    </tr>
+                    <tr style="border-top: 2px solid var(--border-color);">
+                        <td style="padding: 12px 0 6px 0; font-size: 16px; font-weight: 800; color: var(--text-primary); text-align: right;">Grand Total:</td>
+                        <td style="padding: 12px 0 6px 0; font-size: 16px; font-weight: 800; color: var(--primary); text-align: right;">
+                            ₹{{ "{:,.2f}".format(invoice.total_amount) }}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Signature Block -->
+        {% if not company or company.pref_show_signatory %}
+        <div style="display: flex; justify-content: flex-end; margin-top: 50px; margin-bottom: 10px;">
+            <div style="text-align: center; width: 200px; border-top: 1px solid var(--text-muted); padding-top: 6px; font-size: 11px; color: var(--text-primary);">
+                <strong>Authorized Signatory</strong>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Right Column: Audit Activity Log Timeline (no-print) -->
+    <div class="print-col-right no-print">
+        <div class="card" style="padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px; color: var(--primary);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Audit History
+            </h3>
+            
+            {% if logs %}
+                <div class="timeline" style="margin-top: 10px;">
+                    {% for log in logs %}
+                        <div class="timeline-item" style="margin-bottom: 18px;">
+                            <div class="timeline-date" style="font-size: 10px;">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            <div class="timeline-content" style="padding: 8px 12px; border-radius: var(--radius-sm);">
+                                <div class="timeline-title" style="font-size: 12px; font-weight: 700;">{{ log.action }}</div>
+                                {% if log.details %}
+                                    <div class="timeline-desc" style="font-size: 11px; margin-top: 2px;">{{ log.details }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px 0;">No activities logged yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Auto-print trigger scripts if print query parameter is passed -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === '1') {
+            // Log a print activity events in background and trigger window print
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,26 @@
+# Python system files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local configuration / Environment variables
+.env
+.venv
+venv/
+ENV/
+
+# Database files
+# (We keep the schema and models in git, but ignore the actual local SQLite file)
+*.db
+*.sqlite3
+
+# Local static uploads & compiled invoices
+# (We don't want developer test uploads or test invoices committed to repository history)
+static/uploads/logo_*
+generated_invoices/
+
+# Editor configurations
+.vscode/
+.idea/
+.DS_Store

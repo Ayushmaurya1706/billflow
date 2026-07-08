@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Sign Up - BillFlow</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .auth-tabs {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .auth-tab.active {
+            color: #0f172a;
+            border-bottom-color: #2563eb;
+        }
+        .auth-form-panel {
+            display: none;
+        }
+        .auth-form-panel.active {
+            display: block;
+        }
+        .field-error {
+            color: #dc2626;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0;">
+    <div class="auth-container">
+        <div class="auth-card" style="max-width: 450px; width: 100%;">
+            <!-- Header & Logo -->
+            <div class="auth-header" style="text-align: center; margin-bottom: 24px;">
+                <div class="auth-logo">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BillFlow Logo" style="height: 40px; width: auto;">
+                </div>
+                <div class="auth-subtitle" style="font-size: 14px; color: #64748b;">
+                    Invoice Management Portal
+                </div>
+            </div>
+
+            <!-- Tab Headers -->
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login-btn">Login</div>
+                <div class="auth-tab" id="tab-signup-btn">Sign Up</div>
+            </div>
+
+            <!-- Global Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% if category == 'error' or category == 'success' %}
+                            <div class="alert alert-{{ category }}" style="padding: 10px 14px; font-size: 13px; margin-bottom: 16px;">
+                                {{ message }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- LOGIN PANEL -->
+            <div class="auth-form-panel active" id="panel-login">
+                <form action="{{ url_for('login') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-group">
+                        <label for="login-email" class="form-label">Email Address</label>
+                        <input type="email" id="login-email" name="email" class="form-control" placeholder="name@company.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label for="login-password" class="form-label" style="margin-bottom: 0;">Password</label>
+                            <a href="{{ url_for('forgot_password') }}" style="font-size: 12px; color: #2563eb; text-decoration: none;">Forgot Password?</a>
+                        </div>
+                        <input type="password" id="login-password" name="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+
+                    <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+                        <input type="checkbox" id="remember" name="remember" style="margin: 0; cursor: pointer;">
+                        <label for="remember" style="font-size: 13px; color: #64748b; cursor: pointer; user-select: none;">Remember Me</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; height: 44px; font-weight: 600;">
+                        Login
+                    </button>
+                </form>
+                
+                <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #64748b;">
+                    Don't have an account? <a href="#" id="switch-to-signup" style="color: #2563eb; text-decoration: none; font-weight: 600;">Create one</a>
+                </div>
+            </div>
+
+            <!-- SIGN UP PANEL -->
+            <div class="auth-form-panel" id="panel-signup">
+                <form action="{{ url_for('register') }}" method="POST" id="signup-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-group">
+                        <label for="signup-fullname" class="form-label">Full Name</label>
+                        <input type="text" id="signup-fullname" name="full_name" class="form-control" placeholder="John Doe" required>
+                        {% with messages = get_flashed_messages(category_filter=['error_full_name']) %}
+                            {% if messages %}<div class="field-error">{{ messages[0] }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-companyname" class="form-label">Company Name</label>
+                        <input type="text" id="signup-companyname" name="company_name" class="form-control" placeholder="Acme Inc" required>
+                        {% with messages = get_flashed_messages(category_filter=['error_company_name']) %}
+                            {% if messages %}<div class="field-error">{{ messages[0] }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-email" class="form-label">Email Address</label>
+                        <input type="email" id="signup-email" name="email" class="form-control" placeholder="name@company.com" required>
+                        {% with messages = get_flashed_messages(category_filter=['error_email']) %}
+                            {% if messages %}<div class="field-error">{{ messages[0] }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-phone" class="form-label">Phone Number (Optional)</label>
+                        <input type="text" id="signup-phone" name="phone" class="form-control" placeholder="+91 99999 99999">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-password" class="form-label">Password</label>
+                        <input type="password" id="signup-password" name="password" class="form-control" placeholder="Min. 8 chars, 1 upper, 1 lower, 1 digit" required>
+                        <div class="field-error" id="signup-password-error"></div>
+                        {% with messages = get_flashed_messages(category_filter=['error_password']) %}
+                            {% if messages %}<div class="field-error">{{ messages[0] }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label for="signup-confirm-password" class="form-label">Confirm Password</label>
+                        <input type="password" id="signup-confirm-password" name="confirm_password" class="form-control" placeholder="Re-enter password" required>
+                        <div class="field-error" id="signup-confirm-password-error"></div>
+                        {% with messages = get_flashed_messages(category_filter=['error_confirm_password']) %}
+                            {% if messages %}<div class="field-error">{{ messages[0] }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; height: 44px; font-weight: 600;">
+                        Create Account
+                    </button>
+                </form>
+
+                <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #64748b;">
+                    Already have an account? <a href="#" id="switch-to-login" style="color: #2563eb; text-decoration: none; font-weight: 600;">Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabLoginBtn = document.getElementById('tab-login-btn');
+            const tabSignupBtn = document.getElementById('tab-signup-btn');
+            const panelLogin = document.getElementById('panel-login');
+            const panelsignup = document.getElementById('panel-signup');
+            const switchToSignup = document.getElementById('switch-to-signup');
+            const switchToLogin = document.getElementById('switch-to-login');
+            const signupForm = document.getElementById('signup-form');
+            const signupPassword = document.getElementById('signup-password');
+            const signupConfirmPassword = document.getElementById('signup-confirm-password');
+            const passwordError = document.getElementById('signup-password-error');
+            const confirmPasswordError = document.getElementById('signup-confirm-password-error');
+
+            function showTab(tabName) {
+                if (tabName === 'signup') {
+                    tabLoginBtn.classList.remove('active');
+                    tabSignupBtn.classList.add('active');
+                    panelLogin.classList.remove('active');
+                    panelsignup.classList.add('active');
+                } else {
+                    tabSignupBtn.classList.remove('active');
+                    tabLoginBtn.classList.add('active');
+                    panelsignup.classList.remove('active');
+                    panelLogin.classList.add('active');
+                }
+            }
+
+            tabLoginBtn.addEventListener('click', () => showTab('login'));
+            tabSignupBtn.addEventListener('click', () => showTab('signup'));
+            switchToSignup.addEventListener('click', (e) => { e.preventDefault(); showTab('signup'); });
+            switchToLogin.addEventListener('click', (e) => { e.preventDefault(); showTab('login'); });
+
+            // Check URL parameters to show correct tab
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeTab = urlParams.get('tab');
+            if (activeTab === 'signup') {
+                showTab('signup');
+            }
+
+            // Client-side validations
+            signupForm.addEventListener('submit', function(e) {
+                let valid = true;
+                
+                // Reset errors
+                passwordError.textContent = '';
+                confirmPasswordError.textContent = '';
+
+                const pwd = signupPassword.value;
+                const confirmPwd = signupConfirmPassword.value;
+
+                // Validate Password
+                if (pwd.length < 8) {
+                    passwordError.textContent = 'Password must be at least 8 characters long.';
+                    valid = false;
+                } else if (!/[A-Z]/.test(pwd)) {
+                    passwordError.textContent = 'Password must contain at least one uppercase letter.';
+                    valid = false;
+                } else if (!/[a-z]/.test(pwd)) {
+                    passwordError.textContent = 'Password must contain at least one lowercase letter.';
+                    valid = false;
+                } else if (!/[0-9]/.test(pwd)) {
+                    passwordError.textContent = 'Password must contain at least one number.';
+                    valid = false;
+                }
+
+                // Validate Confirm Password
+                if (pwd !== confirmPwd) {
+                    confirmPasswordError.textContent = 'Passwords do not match.';
+                    valid = false;
+                }
+
+                if (!valid) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

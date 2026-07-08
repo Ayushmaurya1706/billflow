@@ -1,0 +1,29 @@
+# Core Web Framework
+Flask
+
+# Database & Object Relational Mapper (ORM)
+Flask-SQLAlchemy
+
+# User Authentication & Session Management
+Flask-Login
+
+# Password Security (Bcrypt hashing)
+Flask-Bcrypt
+
+# Form Validation & CSRF Protection
+Flask-WTF
+
+# PDF Generation Engine
+reportlab
+
+# Image Processing (Validation of logo uploads)
+Pillow
+
+# Excel Sheet Parser (Customer list import & analytics)
+openpyxl
+
+# PostgreSQL database driver
+psycopg2-binary
+
+# Production WSGI Server
+gunicorn

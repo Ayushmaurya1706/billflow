@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Company Settings - BillFlow{% endblock %}
+
+{% block section_title %}Company Settings{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+
+    <!-- Secure form with multipart/form-data for file uploading -->
+    <form action="{{ url_for('settings') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+                Business Details
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Company Name -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="name" class="form-label">Company Name *</label>
+                    <input type="text" id="name" name="name" class="form-control" value="{{ company.name if company else '' }}" required>
+                </div>
+                
+                <!-- Email Address -->
+                <div class="form-group">
+                    <label for="email" class="form-label">Business Email *</label>
+                    <input type="email" id="email" name="email" class="form-control" value="{{ company.email if company else '' }}" required>
+                </div>
+                
+                <!-- Phone Number -->
+                <div class="form-group">
+                    <label for="phone" class="form-label">Business Phone *</label>
+                    <input type="text" id="phone" name="phone" class="form-control" value="{{ company.phone if company else '' }}" required>
+                </div>
+
+                <!-- GST Number -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="gstin" class="form-label">GSTIN (Tax Registration Number)</label>
+                    <input type="text" id="gstin" name="gstin" class="form-control" value="{{ company.gstin if company else '' }}" placeholder="e.g. 27AAAAA1111A1Z1">
+                </div>
+
+                <!-- Business Address -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="address" class="form-label">Billing Address *</label>
+                    <textarea id="address" name="address" class="form-control" rows="3" required>{{ company.address if company else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Logo Upload Section -->
+        <div class="card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+                Branding & Logo
+            </h2>
+
+            <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+                <!-- Logo Preview (if exists) -->
+                <div style="width: 150px; height: 100px; border: 1px solid var(--border-color); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; background-color: var(--bg-app); overflow: hidden;">
+                    {% if company and company.logo_path %}
+                        <img src="{{ url_for('static', filename=company.logo_path.split('static/')[1]) }}" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="Current logo">
+                    {% else %}
+                        <span style="font-size: 11px; color: var(--text-muted);">No Logo Uploaded</span>
+                    {% endif %}
+                </div>
+
+                <div style="flex-grow: 1;">
+                    <label for="logo" class="form-label">Upload Business Logo</label>
+                    <input type="file" id="logo" name="logo" class="form-control" accept=".png, .jpg, .jpeg, .webp">
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                        Allowed formats: PNG, JPG, JPEG, WEBP. Max size: 2MB. Image will be resized for optimal display on invoices.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Bank Account details -->
+        <div class="card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+                Payment Instructions (Bank Transfer Details)
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Account Name -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="bank_account_name" class="form-label">Account Holder Name</label>
+                    <input type="text" id="bank_account_name" name="bank_account_name" class="form-control" value="{{ company.bank_account_name if company else '' }}" placeholder="e.g. Acme Corp Private Limited">
+                </div>
+                
+                <!-- Bank Name -->
+                <div class="form-group">
+                    <label for="bank_name" class="form-label">Bank Name</label>
+                    <input type="text" id="bank_name" name="bank_name" class="form-control" value="{{ company.bank_name if company else '' }}" placeholder="e.g. State Bank of India">
+                </div>
+                
+                <!-- Bank Account Number -->
+                <div class="form-group">
+                    <label for="bank_account" class="form-label">Account Number</label>
+                    <input type="text" id="bank_account" name="bank_account" class="form-control" value="{{ company.bank_account if company else '' }}" placeholder="e.g. 100023456789">
+                </div>
+                
+                <!-- IFSC Code -->
+                <div class="form-group">
+                    <label for="bank_ifsc" class="form-label">IFSC Code / Routing Code</label>
+                    <input type="text" id="bank_ifsc" name="bank_ifsc" class="form-control" value="{{ company.bank_ifsc if company else '' }}" placeholder="e.g. SBIN0001234">
+                </div>
+
+                <!-- Branch Name -->
+                <div class="form-group">
+                    <label for="bank_branch" class="form-label">Branch Name</label>
+                    <input type="text" id="bank_branch" name="bank_branch" class="form-control" value="{{ company.bank_branch if company else '' }}" placeholder="e.g. Hyderabad Main Branch">
+                </div>
+
+                <!-- UPI ID -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="upi_id" class="form-label">UPI ID</label>
+                    <input type="text" id="upi_id" name="upi_id" class="form-control" value="{{ company.upi_id if company else '' }}" placeholder="e.g. acme@okaxis">
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Global Terms and Conditions -->
+        <div class="card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+                Global Terms & Conditions
+            </h2>
+            <div class="form-group">
+                <label for="terms_conditions" class="form-label">Terms & Conditions (Permanent bottom disclaimer)</label>
+                <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="4" placeholder="e.g.&#10;1. Payment is due within 30 days.&#10;2. Goods once sold will not be taken back.&#10;3. Subject to Hyderabad jurisdiction.">{{ company.terms_conditions if company else '' }}</textarea>
+            </div>
+        </div>
+
+        <!-- 5. Invoice Display Preferences -->
+        <div class="card">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+                Invoice Display Preferences
+            </h2>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="pref_show_hsn_summary" value="1" {% if not company or company.pref_show_hsn_summary %}checked{% endif %}>
+                    Show HSN Summary Table
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="pref_show_bank_details" value="1" {% if not company or company.pref_show_bank_details %}checked{% endif %}>
+                    Show Bank Details Block
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="pref_show_terms" value="1" {% if not company or company.pref_show_terms %}checked{% endif %}>
+                    Show Terms & Conditions
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="pref_show_notes" value="1" {% if not company or company.pref_show_notes %}checked{% endif %}>
+                    Show Invoice-specific Notes
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="pref_show_signatory" value="1" {% if not company or company.pref_show_signatory %}checked{% endif %}>
+                    Show Authorized Signatory Section
+                </label>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 40px;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

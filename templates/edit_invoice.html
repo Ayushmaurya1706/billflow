@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Invoice - BillFlow{% endblock %}
+
+{% block section_title %}Edit Invoice: {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="builder-layout">
+    
+    <!-- Left Column: The Billing Form Editor -->
+    <div class="form-container">
+        <form id="invoice-form" action="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Invoice Metadata -->
+            <div class="card">
+                <h3 class="section-title">Invoice Details</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label for="invoice_number" class="form-label">Invoice Number</label>
+                        <input type="text" id="invoice_number" name="invoice_number" class="form-control" value="{{ invoice.invoice_number }}" readonly>
+                        <span style="font-size: 11px; color: var(--text-muted);">Invoice numbers cannot be edited</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status" class="form-label">Status</label>
+                        <select id="status" name="status" class="form-control">
+                            <option value="Unpaid" {% if invoice.status == 'Unpaid' %}selected{% endif %}>Unpaid</option>
+                            <option value="Paid" {% if invoice.status == 'Paid' %}selected{% endif %}>Paid</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date_created" class="form-label">Issue Date *</label>
+                        <input type="date" id="date_created" name="date_created" class="form-control" value="{{ invoice.date_created.strftime('%Y-%m-%d') }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="due_date" class="form-label">Due Date *</label>
+                        <input type="date" id="due_date" name="due_date" class="form-control" value="{{ invoice.due_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Metadata (Lookup + Fields) -->
+            <div class="card">
+                <h3 class="section-title">Client Details</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <!-- Customer Directory Autofill Lookup -->
+                    <div class="form-group" style="grid-column: span 2; margin-bottom: 8px;">
+                        <label for="customer_select" class="form-label">Select Customer (Replace info)</label>
+                        <select id="customer_select" class="form-control">
+                            <option value="">-- Choose registered customer --</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="client_name" class="form-label">Client / Company Name *</label>
+                        <input type="text" id="client_name" name="client_name" class="form-control" value="{{ invoice.client_name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="client_email" class="form-label">Client Email *</label>
+                        <input type="email" id="client_email" name="client_email" class="form-control" value="{{ invoice.client_email }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="client_phone" class="form-label">Client Phone</label>
+                        <input type="text" id="client_phone" name="client_phone" class="form-control" value="{{ invoice.client_phone if invoice.client_phone else '' }}" placeholder="+91 9988776655">
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="client_gstin" class="form-label">Client GSTIN</label>
+                        <input type="text" id="client_gstin" name="client_gstin" class="form-control" value="{{ invoice.client_gstin if invoice.client_gstin else '' }}" placeholder="e.g. 27BBBBB2222B2Y2">
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="client_address" class="form-label">Client Billing Address *</label>
+                        <textarea id="client_address" name="client_address" class="form-control" rows="2" required>{{ invoice.client_address }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Itemized Lines Editor -->
+            <div class="card">
+                <h3 class="section-title">Line Items</h3>
+                
+                <table class="items-editor-table">
+                    <thead>
+                        <tr>
+                            <th>Item Description</th>
+                            <th>HSN/SAC</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th style="text-align: right;">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body">
+                        {% for item in invoice.items %}
+                            <tr class="item-row">
+                                <td class="col-desc">
+                                    <input type="text" name="description[]" class="form-control item-desc" value="{{ item.description }}" required>
+                                </td>
+                                <td class="col-hsn">
+                                    <input type="text" name="hsn_sac[]" class="form-control item-hsn" value="{{ item.hsn_sac if item.hsn_sac else '' }}" placeholder="HSN/SAC (Optional)">
+                                </td>
+                                <td class="col-qty">
+                                    <input type="number" name="quantity[]" class="form-control item-qty" value="{{ item.quantity }}" min="1" required>
+                                </td>
+                                <td class="col-rate">
+                                    <input type="number" name="unit_price[]" class="form-control item-rate" value="{{ '%.2f' | format(item.unit_price) }}" min="0" step="0.01" required>
+                                </td>
+                                <td class="col-amount">₹{{ '{:,.2f}'.format(item.total) }}</td>
+                                <td class="col-action">
+                                    <button type="button" class="remove-item-btn" title="Remove line item">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <button type="button" id="add-item-btn" class="btn btn-secondary btn-sm">
+                    + Add Line Item
+                </button>
+            </div>
+
+            <!-- Adjustments & Notes -->
+            <div class="card">
+                <h3 class="section-title">Adjustments & Notes</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label for="gst_rate" class="form-label">GST Tax Rate (%)</label>
+                        <select id="gst_rate" name="gst_rate" class="form-control">
+                            <option value="18" {% if invoice.gst_rate == 18.0 %}selected{% endif %}>18% GST (Standard)</option>
+                            <option value="12" {% if invoice.gst_rate == 12.0 %}selected{% endif %}>12% GST</option>
+                            <option value="5" {% if invoice.gst_rate == 5.0 %}selected{% endif %}>5% GST</option>
+                            <option value="28" {% if invoice.gst_rate == 28.0 %}selected{% endif %}>28% GST</option>
+                            <option value="0" {% if invoice.gst_rate == 0.0 %}selected{% endif %}>0% Exempt</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="discount" class="form-label">Discount Rate (%)</label>
+                        <input type="number" id="discount" name="discount" class="form-control" value="{{ invoice.discount | int }}" min="0" max="100">
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="notes" class="form-label">Notes & Payment Conditions</label>
+                        <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="e.g. Please transfer to the bank details listed on this invoice.">{{ invoice.notes if invoice.notes else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="totals-summary-container">
+                    <div class="totals-box">
+                        <div class="totals-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal-val">₹0.00</span>
+                        </div>
+                        <div class="totals-row">
+                            <span>Discount:</span>
+                            <span id="discount-val">₹0.00</span>
+                        </div>
+                        <div class="totals-row">
+                            <span>GST Amount:</span>
+                            <span id="tax-val">₹0.00</span>
+                        </div>
+                        <div class="totals-row">
+                            <span>Total Due:</span>
+                            <span id="total-val">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 40px;">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Invoice Changes</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Right Column: Sticky Visual Preview -->
+    <div class="preview-sticky">
+        <div class="invoice-preview-paper">
+            <div class="preview-watermark">Live Preview</div>
+
+            <!-- Header -->
+            <div class="preview-header">
+                <div>
+                    {% if company and company.logo_path %}
+                        <img src="{{ url_for('static', filename=company.logo_path.split('static/')[1]) }}" class="preview-logo-placeholder" alt="Logo">
+                    {% else %}
+                        <div class="preview-company-name">{{ company.name if company else 'My Business' }}</div>
+                    {% endif %}
+                    <p style="font-size: 8px; color: var(--text-muted); margin-top: 4px;">
+                        {{ company.address if company else 'Business Address Here' }}<br/>
+                        GSTIN: {{ company.gstin if company else '27XXXXX0000X0Z0' }}
+                    </p>
+                </div>
+                <div class="preview-meta">
+                    <h3>INVOICE</h3>
+                    <p>
+                        Invoice #: <span id="prev-invoice-num">{{ invoice.invoice_number }}</span><br/>
+                        Date: <span id="prev-date">00-AAA-0000</span><br/>
+                        Due Date: <span id="prev-due-date">00-AAA-0000</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Client & Bank Transfer info -->
+            <div class="preview-details-grid">
+                <div>
+                    <span style="font-size: 8px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Bill To</span>
+                    <p id="prev-client-name" style="font-weight: 700; margin-top: 4px;">{{ invoice.client_name }}</p>
+                    <p id="prev-client-address" style="font-size: 8px; color: var(--text-muted);">{{ invoice.client_address }}</p>
+                    <p id="prev-client-email" style="font-size: 8px; color: var(--text-muted); margin-top: 2px;">{{ invoice.client_email }}</p>
+                    <p id="prev-client-gstin" style="font-size: 8px; color: var(--text-muted);">GSTIN: {{ invoice.client_gstin if invoice.client_gstin else '(Not provided)' }}</p>
+                </div>
+                <div>
+                    <span style="font-size: 8px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Payment Details</span>
+                    <p style="font-weight: 700; margin-top: 4px;">{{ company.bank_name if (company and company.bank_name) else 'Bank Transfer' }}</p>
+                    <p style="font-size: 8px; color: var(--text-muted);">
+                        A/C: {{ company.bank_account if (company and company.bank_account) else 'XXXXXXXXX' }}<br/>
+                        IFSC: {{ company.bank_ifsc if (company and company.bank_ifsc) else 'XXXX0000000' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <table class="preview-items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">#</th>
+                        <th>Item Description</th>
+                        <th style="text-align: right; width: 80px;">Rate</th>
+                        <th style="text-align: center; width: 40px;">Qty</th>
+                        <th style="text-align: right; width: 90px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="prev-items-body">
+                    <!-- Javascript populates this -->
+                </tbody>
+            </table>
+
+            <!-- Calculations Summary -->
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; align-items: start; margin-top: 10px;">
+                <div>
+                    <span style="font-size: 8px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Terms & Notes</span>
+                    <p id="prev-notes" style="font-size: 8px; color: var(--text-muted); margin-top: 4px; line-height: 1.3;">
+                        {{ invoice.notes if invoice.notes else 'Payment is due upon receipt.' }}
+                    </p>
+                </div>
+                <div class="preview-totals-wrapper">
+                    <table class="preview-totals-table">
+                        <tr>
+                            <td>Subtotal</td>
+                            <td id="prev-subtotal" style="text-align: right;">₹0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Discount</td>
+                            <td id="prev-discount" style="text-align: right; color: var(--error);">- ₹0.00</td>
+                        </tr>
+                        <tr>
+                            <td>GST</td>
+                            <td id="prev-tax" style="text-align: right;">+ ₹0.00</td>
+                        </tr>
+                        <tr style="font-weight: 700;">
+                            <td>Total Due</td>
+                            <td id="prev-total" style="text-align: right;">₹0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/invoice.js') }}"></script>
+{% endblock %}

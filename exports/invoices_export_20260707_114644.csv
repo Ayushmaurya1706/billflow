@@ -1,0 +1,2 @@
+Invoice Number,Customer Name,Customer Email,Invoice Date,Due Date,Subtotal,Tax Amount,Total Amount,Status,Starred
+INV-2026-EXPORT-1,Export Client,export@client.com,2026-07-07,2026-07-07,100.0,18.0,118.0,Paid,No

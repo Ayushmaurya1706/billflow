@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}BillFlow - Activity Log{% endblock %}
+
+{% block section_title %}Activity Log{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h1 style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0;">Audit History & Activity Log</h1>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Audited list of transaction events performed on invoices.</p>
+    </div>
+</div>
+
+<div class="card">
+    {% if logs %}
+        <div class="timeline">
+            {% for log in logs %}
+                <div class="timeline-item">
+                    <div class="timeline-date">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    <div class="timeline-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span class="timeline-title">{{ log.action }}</span>
+                            <span style="font-size: 11px; font-weight: 700; color: var(--primary); background-color: var(--primary-light); padding: 2px 8px; border-radius: 4px;">
+                                {{ log.invoice_number }}
+                            </span>
+                        </div>
+                        {% if log.details %}
+                            <div class="timeline-desc">{{ log.details }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 40px 20px;">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 48px; height: 48px; color: var(--text-light); margin-bottom: 16px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0;">No Logs Found</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Activities on invoices will automatically populate here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

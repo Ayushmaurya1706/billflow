@@ -1,0 +1,655 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Directory - BillFlow{% endblock %}
+
+{% block section_title %}Customer Directory{% endblock %}
+
+{% block content %}
+<!-- Hidden File Input for Excel Import Trigger -->
+<input type="file" id="excel-file-hidden" style="display: none;" accept=".xlsx, .xls">
+
+<!-- Main Layout: Customer Directory List (Left) | Add Customer Card (Right) -->
+<div class="builder-layout" style="grid-template-columns: 1.25fr 0.75fr;">
+
+    <!-- Left Column: Customers List Card -->
+    <div class="card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                Registered Customers (Total: {{ customers|length if customers else 0 }})
+            </h2>
+            
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="cust-search" class="form-control" style="width: 170px; padding: 6px 12px; font-size: 13px;" placeholder="Search customer...">
+                
+                <button type="button" id="import-excel-btn" class="btn btn-secondary btn-sm" style="color: var(--primary); border-color: var(--primary); font-size: 12px; padding: 6px 12px;">
+                    Import Excel
+                </button>
+                
+                {% if customers %}
+                    <form action="{{ url_for('clear_customers') }}" method="POST" onsubmit="return confirm('Are you sure you want to delete ALL customers from the directory? Past invoices will NOT be affected.');" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--error); border-color: var(--error); font-size: 12px; padding: 6px 12px;">
+                            Clear Directory
+                        </button>
+                    </form>
+                {% endif %}
+                
+                <button type="button" id="toggle-sheet-btn" class="btn btn-secondary btn-sm" style="color: var(--primary); border-color: var(--primary); font-size: 12px; padding: 6px 12px;">
+                    Create Customer Sheet
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            {% if customers %}
+                <table class="table" id="customers-table">
+                    <thead>
+                        <tr>
+                            <th>Company Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>GSTIN</th>
+                            <th>Address</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-list-body">
+                        {% for customer in customers %}
+                            <tr class="customer-row">
+                                <td class="search-name"><strong>{{ customer.name }}</strong></td>
+                                <td class="search-email">{{ customer.email }}</td>
+                                <td>{{ customer.phone if customer.phone else '-' }}</td>
+                                <td>{{ customer.gstin if customer.gstin else '-' }}</td>
+                                <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ customer.address }}">
+                                    {{ customer.address }}
+                                </td>
+                                <td style="text-align: right;">
+                                    <form action="{{ url_for('delete_customer', customer_id=customer.id) }}" method="POST" onsubmit="return confirm('Delete this customer? This will not affect their past invoices.');" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--error); border-color: var(--border-color); padding: 4px 8px;">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div style="text-align: center; padding: 40px 10px; color: var(--text-muted);" id="blank-state">
+                    <svg style="width: 40px; height: 40px; margin-bottom: 12px; color: var(--text-light);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <p style="font-size: 13px;">No customers registered yet. Click Import Excel or Create Customer Sheet to begin.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Add Customer Card (Excel import has been moved to toolbar) -->
+    <div class="card" style="margin-bottom: 0;">
+        <h3 class="section-title">Add New Customer</h3>
+        
+        <form action="{{ url_for('customers') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled = true; btn.innerText = 'Saving...';">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-group">
+                <label for="cust_name" class="form-label">Client / Company Name *</label>
+                <input type="text" id="cust_name" name="name" class="form-control" placeholder="e.g. Acme Corp" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cust_email" class="form-label">Email Address *</label>
+                <input type="email" id="cust_email" name="email" class="form-control" placeholder="e.g. billing@acme.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cust_phone" class="form-label">Phone Number</label>
+                <input type="text" id="cust_phone" name="phone" class="form-control" placeholder="e.g. +91 9988776655">
+            </div>
+
+            <div class="form-group">
+                <label for="cust_gstin" class="form-label">GSTIN (Tax ID)</label>
+                <input type="text" id="cust_gstin" name="gstin" class="form-control" placeholder="e.g. 27AAAAA1111A1Z1">
+            </div>
+
+            <div class="form-group">
+                <label for="cust_address" class="form-label">Billing Address *</label>
+                <textarea id="cust_address" name="address" class="form-control" rows="4" placeholder="Address..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                Save Customer
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<!-- 3. Bottom Expansion: Spreadsheet Workspace Card -->
+<div id="sheet-workspace" class="sheet-workspace" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+            <h3 class="section-title" style="margin: 0; border-bottom: none;">Create Customer Sheet</h3>
+            <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                Enter client rows. Press <kbd>Tab</kbd> to move between cells. Completely empty rows will be ignored.
+            </p>
+        </div>
+        <div id="sheet-status-summary" style="font-size: 13px; font-weight: 600;"></div>
+    </div>
+    
+    <div class="table-responsive" style="max-height: 400px; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+        <table class="sheet-table">
+            <thead>
+                <tr>
+                    <th>Company Name *</th>
+                    <th>Email *</th>
+                    <th>Phone</th>
+                    <th>Address *</th>
+                    <th>GSTIN</th>
+                    <th style="width: 50px; background-color: #f1f5f9; border: 1px solid var(--border-color);"></th>
+                </tr>
+            </thead>
+            <tbody id="sheet-body">
+                <!-- JS appends spreadsheet row nodes dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <button type="button" id="sheet-add-row-btn" class="btn btn-secondary btn-sm">+ Add Row</button>
+        
+        <div style="display: flex; gap: 12px;">
+            <button type="button" id="sheet-cancel-btn" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="button" id="sheet-save-btn" class="btn btn-primary btn-sm" style="min-width: 110px;">
+                <span id="sheet-spinner" class="spinner" style="display: none;"></span>
+                <span id="sheet-btn-text">Save All</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+   4. Overlays & Dialog Modals (Version 2.7 Guidelines Flow)
+   ========================================================================== -->
+
+<!-- Dialog 1: Guidelines Modal (Shown first when Import clicked) -->
+<div id="import-guidelines-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+        <h3 class="modal-title">
+            <svg style="width:24px; height:24px; color: var(--primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Excel Import Guidelines
+        </h3>
+        
+        <div class="guidelines-box" style="margin-bottom: 20px;">
+            <div class="guidelines-title">Import Instructions & Constraints</div>
+            <ul class="guidelines-list">
+                <li>Supported file formats: <strong>.xlsx</strong> and <strong>.xls</strong></li>
+                <li>Required columns: <strong>Company Name, Email, Phone, Address, GSTIN</strong></li>
+                <li><strong>Company Name</strong>, <strong>Email</strong>, and <strong>Address</strong> are mandatory columns.</li>
+                <li>Rows with missing required fields, invalid email formats, or duplicate names will be skipped.</li>
+                <li>Your original Excel file will <strong>never</strong> be modified.</li>
+                <li>Maximum rows allowed in a spreadsheet: <strong>1,000</strong>.</li>
+            </ul>
+            <div style="margin-top: 16px; text-align: center;">
+                <a href="{{ url_for('download_customer_template') }}" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 6px 14px;">
+                    Download Sample Excel Template
+                </a>
+            </div>
+        </div>
+        
+        <p style="font-size: 13px; color: var(--text-primary); line-height: 1.5; margin-bottom: 12px; font-weight: 600;">
+            Would you like to proceed with the import?
+        </p>
+
+        <div class="modal-footer" style="margin-top: 16px; padding-top: 12px;">
+            <button type="button" id="guidelines-cancel-btn" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="button" id="guidelines-proceed-btn" class="btn btn-primary btn-sm">OK / Select File</button>
+        </div>
+    </div>
+</div>
+
+<!-- Dialog 2: Loading Overlay Modal (Blocks double clicks) -->
+<div id="import-loading-modal" class="modal-overlay" style="display: none; background-color: rgba(15, 23, 42, 0.65);">
+    <div class="modal-box" style="max-width: 320px; text-align: center; padding: 24px;">
+        <span class="spinner" style="width: 32px; height: 32px; border-width: 3px; border-top-color: var(--primary); margin-bottom: 16px;"></span>
+        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Importing Customers</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">Please wait while we parse your spreadsheet...</p>
+    </div>
+</div>
+
+<!-- Dialog 3: Import Results Modal -->
+<div id="import-results-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+        <h3 class="modal-title">
+            <svg style="width:24px; height:24px; color: var(--success);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Import Completed Successfully
+        </h3>
+        
+        <div style="background-color: var(--bg-app); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600;">
+                <div style="color: var(--success);">✔ Imported: <span id="res-imported-count" style="font-weight: 700;">0</span> customers</div>
+                <div style="color: var(--warning);">⚠ Skipped duplicates: <span id="res-duplicate-count" style="font-weight: 700;">0</span></div>
+                <div style="color: var(--error);">⚠ Invalid rows: <span id="res-invalid-count" style="font-weight: 700;">0</span></div>
+            </div>
+        </div>
+        
+        <div id="results-table-container" style="display: none; margin-top: 16px;">
+            <p style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">
+                Skipped Rows Reason Breakdown
+            </p>
+            <div class="table-responsive" style="max-height: 200px; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow-y: auto;">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Row #</th>
+                            <th style="width: 100px;">Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                        <!-- JS renders skipped breakdown reports here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" id="results-close-btn" class="btn btn-primary btn-sm">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Client-side quick filter for customer listing
+    document.getElementById('cust-search')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.customer-row');
+        
+        rows.forEach(row => {
+            const nameText = row.querySelector('.search-name').textContent.toLowerCase();
+            const emailText = row.querySelector('.search-email').textContent.toLowerCase();
+            
+            if (nameText.includes(query) || emailText.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // ==========================================================================
+    // EXCEL IMPORT CONTROLLER (Version 2.7 Toolbar Flow)
+    // ==========================================================================
+    const importExcelBtn = document.getElementById('import-excel-btn');
+    const excelFileHidden = document.getElementById('excel-file-hidden');
+    
+    const guidelinesModal = document.getElementById('import-guidelines-modal');
+    const guidelinesCancelBtn = document.getElementById('guidelines-cancel-btn');
+    const guidelinesProceedBtn = document.getElementById('guidelines-proceed-btn');
+    
+    const loadingModal = document.getElementById('import-loading-modal');
+    const resultsModal = document.getElementById('import-results-modal');
+    const resultsCloseBtn = document.getElementById('results-close-btn');
+
+    // Toolbar button click -> Open Guidelines Modal
+    if (importExcelBtn) {
+        importExcelBtn.addEventListener('click', function() {
+            guidelinesModal.style.display = 'flex';
+        });
+    }
+
+    // Cancel guidelines modal
+    if (guidelinesCancelBtn) {
+        guidelinesCancelBtn.addEventListener('click', function() {
+            guidelinesModal.style.display = 'none';
+        });
+    }
+
+    // Proceed from guidelines -> Trigger file input selector
+    if (guidelinesProceedBtn) {
+        guidelinesProceedBtn.addEventListener('click', function() {
+            guidelinesModal.style.display = 'none';
+            excelFileHidden.click();
+        });
+    }
+
+    // File selected -> Upload spreadsheet via AJAX FormData
+    if (excelFileHidden) {
+        excelFileHidden.addEventListener('change', function() {
+            if (!excelFileHidden.files || excelFileHidden.files.length === 0) {
+                return;
+            }
+
+            const file = excelFileHidden.files[0];
+            
+            // Show double submission blocking loading modal
+            loadingModal.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('excel_file', file);
+
+            fetch('/customers/import', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server returned error status');
+                }
+                return response.json();
+            })
+            .then(res => {
+                // Clear file input value
+                excelFileHidden.value = '';
+                // Hide loading overlay
+                loadingModal.style.display = 'none';
+
+                if (res.success) {
+                    // Populate metrics
+                    document.getElementById('res-imported-count').textContent = res.imported_count;
+                    document.getElementById('res-duplicate-count').textContent = res.duplicate_count;
+                    document.getElementById('res-invalid-count').textContent = res.invalid_count;
+
+                    // Compile skips breakdown report table
+                    const report = res.report || [];
+                    const tableContainer = document.getElementById('results-table-container');
+                    const tableBody = document.getElementById('results-table-body');
+                    
+                    tableBody.innerHTML = '';
+                    
+                    if (report.length > 0) {
+                        report.forEach(item => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td><strong>Row ${item.row}</strong></td>
+                                <td><span class="report-badge report-badge-skipped">${item.status}</span></td>
+                                <td style="color: var(--text-muted);">${item.reason}</td>
+                            `;
+                            tableBody.appendChild(tr);
+                        });
+                        tableContainer.style.display = 'block';
+                    } else {
+                        tableContainer.style.display = 'none';
+                    }
+
+                    // Open results view
+                    resultsModal.style.display = 'flex';
+                } else {
+                    alert('Import Failed: ' + res.message);
+                }
+            })
+            .catch(error => {
+                // Clear input and hide loading
+                excelFileHidden.value = '';
+                loadingModal.style.display = 'none';
+
+                console.error('Customer Import Error:', error);
+                alert('A system error occurred. Ensure the Excel spreadsheet is not corrupted and conforms to the column templates.');
+            });
+        });
+    }
+
+    // Close Results Modal -> Reload listing page
+    if (resultsCloseBtn) {
+        resultsCloseBtn.addEventListener('click', function() {
+            resultsModal.style.display = 'none';
+            window.location.reload();
+        });
+    }
+
+    // ==========================================================================
+    // SPREADSHEET EDITOR INTERACTIVITY (Version 2.5)
+    // ==========================================================================
+    const sheetWorkspace = document.getElementById('sheet-workspace');
+    const toggleSheetBtn = document.getElementById('toggle-sheet-btn');
+    const sheetBody = document.getElementById('sheet-body');
+    const sheetAddRowBtn = document.getElementById('sheet-add-row-btn');
+    const sheetCancelBtn = document.getElementById('sheet-cancel-btn');
+    const sheetSaveBtn = document.getElementById('sheet-save-btn');
+    const sheetSpinner = document.getElementById('sheet-spinner');
+    const sheetBtnText = document.getElementById('sheet-btn-text');
+    const sheetStatusSummary = document.getElementById('sheet-status-summary');
+
+    // Helper: Add a blank row node to spreadsheet editor
+    function addSpreadsheetRow(data = {}) {
+        const tr = document.createElement('tr');
+        tr.className = 'sheet-row';
+        tr.innerHTML = `
+            <td>
+                <input type="text" class="sheet-input cell-name" value="${data.name || ''}" placeholder="Acme Corp..." required>
+                <div class="error-name sheet-error-container" style="display: none;"></div>
+            </td>
+            <td>
+                <input type="email" class="sheet-input cell-email" value="${data.email || ''}" placeholder="billing@acme.com" required>
+                <div class="error-email sheet-error-container" style="display: none;"></div>
+            </td>
+            <td>
+                <input type="text" class="sheet-input cell-phone" value="${data.phone || ''}" placeholder="Phone...">
+                <div class="error-phone sheet-error-container" style="display: none;"></div>
+            </td>
+            <td>
+                <input type="text" class="sheet-input cell-address" value="${data.address || ''}" placeholder="123 Road, State, PIN..." required>
+                <div class="error-address sheet-error-container" style="display: none;"></div>
+            </td>
+            <td>
+                <input type="text" class="sheet-input cell-gstin" value="${data.gstin || ''}" placeholder="GSTIN...">
+                <div class="error-gstin sheet-error-container" style="display: none;"></div>
+            </td>
+            <td style="text-align: center; vertical-align: middle;">
+                <button type="button" class="sheet-remove-btn" title="Delete Row">
+                    <svg style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            </td>
+        `;
+        sheetBody.appendChild(tr);
+    }
+
+    // Toggle Spreadsheet open
+    if (toggleSheetBtn) {
+        toggleSheetBtn.addEventListener('click', function() {
+            if (sheetWorkspace.style.display === 'none') {
+                sheetWorkspace.style.display = 'block';
+                sheetStatusSummary.innerHTML = '';
+                
+                // Initialize with 3 empty rows if empty
+                if (sheetBody.querySelectorAll('.sheet-row').length === 0) {
+                    addSpreadsheetRow();
+                    addSpreadsheetRow();
+                    addSpreadsheetRow();
+                }
+                
+                // Smooth scroll to workspace
+                sheetWorkspace.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                sheetWorkspace.style.display = 'none';
+            }
+        });
+    }
+
+    // Add Row Click
+    if (sheetAddRowBtn) {
+        sheetAddRowBtn.addEventListener('click', function() {
+            addSpreadsheetRow();
+        });
+    }
+
+    // Delete row (Event delegation on delete buttons)
+    if (sheetBody) {
+        sheetBody.addEventListener('click', function(e) {
+            const removeBtn = e.target.closest('.sheet-remove-btn');
+            if (removeBtn) {
+                const row = removeBtn.closest('.sheet-row');
+                row.remove();
+            }
+        });
+    }
+
+    // Cancel Sheet Click
+    if (sheetCancelBtn) {
+        sheetCancelBtn.addEventListener('click', function() {
+            sheetBody.innerHTML = '';
+            sheetWorkspace.style.display = 'none';
+            sheetStatusSummary.innerHTML = '';
+        });
+    }
+
+    // Save All Sheet Click
+    if (sheetSaveBtn) {
+        sheetSaveBtn.addEventListener('click', function() {
+            const rows = sheetBody.querySelectorAll('.sheet-row');
+            const dataToSubmit = [];
+            const rowElements = [];
+
+            // Reset all previous error highlights and warnings
+            rows.forEach(row => {
+                row.classList.remove('has-error');
+                row.querySelectorAll('.sheet-error-container').forEach(div => {
+                    div.textContent = '';
+                    div.style.display = 'none';
+                });
+            });
+
+            // Extract row values
+            rows.forEach(row => {
+                const name = row.querySelector('.cell-name').value.trim();
+                const email = row.querySelector('.cell-email').value.trim();
+                const phone = row.querySelector('.cell-phone').value.trim();
+                const address = row.querySelector('.cell-address').value.trim();
+                const gstin = row.querySelector('.cell-gstin').value.trim();
+
+                // Skip row if it is completely empty
+                if (!name && !email && !phone && !address && !gstin) {
+                    return;
+                }
+
+                dataToSubmit.push({
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    address: address,
+                    gstin: gstin
+                });
+                
+                rowElements.push(row);
+            });
+
+            // Check if there is actual data to save
+            if (dataToSubmit.length === 0) {
+                alert('No client data to save. Please fill out at least one row.');
+                return;
+            }
+
+            // Set UI Loading state
+            sheetSaveBtn.disabled = true;
+            sheetCancelBtn.disabled = true;
+            sheetAddRowBtn.disabled = true;
+            sheetSpinner.style.display = 'inline-block';
+            sheetBtnText.textContent = 'Saving...';
+            sheetStatusSummary.innerHTML = '';
+
+            // Post spreadsheet rows to server bulk endpoint
+            fetch('/customers/bulk-create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    rows: dataToSubmit
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server returned error response');
+                }
+                return response.json();
+            })
+            .then(res => {
+                // Restore UI controls state
+                sheetSaveBtn.disabled = false;
+                sheetCancelBtn.disabled = false;
+                sheetAddRowBtn.disabled = false;
+                sheetSpinner.style.display = 'none';
+                sheetBtnText.textContent = 'Save All';
+
+                if (res.success) {
+                    if (res.error_rows && res.error_rows.length > 0) {
+                        // Partial success: display stats summary
+                        sheetStatusSummary.innerHTML = `
+                            <span style="color: var(--success); margin-right: 12px;">✔ ${res.added_count} saved</span>
+                            <span style="color: var(--warning); margin-right: 12px;">⚠ ${res.duplicate_count} duplicates skipped</span>
+                            <span style="color: var(--error);">⚠ ${res.error_rows.length} rows have errors</span>
+                        `;
+
+                        // Compile mapping of error rows
+                        const errorMap = {};
+                        res.error_rows.forEach(errRow => {
+                            errorMap[errRow.row_idx] = errRow.errors;
+                        });
+
+                        // Keep ONLY the error rows in the spreadsheet, highlighting specific cells
+                        const trList = Array.from(sheetBody.querySelectorAll('.sheet-row'));
+
+                        trList.forEach(tr => {
+                            const submittedIdx = rowElements.indexOf(tr);
+                            if (submittedIdx === -1) {
+                                tr.remove();
+                                return;
+                            }
+
+                            if (submittedIdx in errorMap) {
+                                tr.classList.add('has-error');
+                                const errors = errorMap[submittedIdx];
+                                
+                                for (const field in errors) {
+                                    const input = tr.querySelector(`.cell-${field}`);
+                                    const errorDiv = tr.querySelector(`.error-${field}`);
+                                    
+                                    if (input && errorDiv) {
+                                        errorDiv.textContent = errors[field];
+                                        errorDiv.style.display = 'block';
+                                    }
+                                }
+                            } else {
+                                tr.remove();
+                            }
+                        });
+                        
+                        alert(`Valid rows saved successfully (${res.added_count} added, ${res.duplicate_count} duplicates skipped). Please correct highlighted errors.`);
+                        
+                    } else {
+                        sheetBody.innerHTML = '';
+                        sheetWorkspace.style.display = 'none';
+                        alert(`${res.added_count} customers registered successfully!`);
+                        window.location.reload();
+                    }
+                } else {
+                    alert('Failed to save spreadsheet data: ' + res.message);
+                }
+            })
+            .catch(error => {
+                sheetSaveBtn.disabled = false;
+                sheetCancelBtn.disabled = false;
+                sheetAddRowBtn.disabled = false;
+                sheetSpinner.style.display = 'none';
+                sheetBtnText.textContent = 'Save All';
+                
+                console.error('Error saving customers:', error);
+                alert('A system network error occurred while attempting to save client sheet.');
+            });
+        });
+    }
+</script>
+{% endblock %}

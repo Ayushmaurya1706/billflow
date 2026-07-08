@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BillFlow - Premium B2B Invoicing & GST Analytics</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Dedicated Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+
+    <!-- 1. Header Navigation -->
+    <header class="landing-header">
+        <div class="header-container">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BillFlow Logo" style="height: 36px; width: auto;">
+            </a>
+            <a href="{{ url_for('login') }}" class="nav-cta">
+                Login / Get Started
+            </a>
+        </div>
+    </header>
+
+    <!-- 2. Hero Section -->
+    <section class="hero-section">
+        <div class="hero-container">
+            <span class="badge">Built for GST-Compliant Businesses</span>
+            <h1 class="hero-title">Invoicing that gets your GST right, every time</h1>
+            <p class="hero-subtitle">
+                Create professional GST invoices in seconds. BillFlow automatically calculates CGST, SGST, and IGST, manages invoice numbering, and keeps your business GST-compliant.
+            </p>
+            <div class="hero-actions">
+                <a href="{{ url_for('login') }}" class="btn-primary">Login / Get Started</a>
+                <a href="{{ url_for('static', filename='sample_invoice.pdf') }}" target="_blank" class="btn-secondary">See Sample</a>
+            </div>
+            <p style="font-size: 13px; color: var(--slate-400, #94a3b8); margin-top: 24px; margin-bottom: 24px; font-weight: 500;">
+                Trusted by businesses for invoicing, customer management, and GST reporting.
+            </p>
+        </div>
+
+        <!-- KPI Cards Grid -->
+        <div class="kpi-container">
+            <!-- Revenue Card -->
+            <div class="kpi-card kpi-revenue">
+                <div class="kpi-label">Revenue (YTD)</div>
+                <div class="kpi-value-row">
+                    <div class="kpi-value">₹12,45,000</div>
+                    <span class="kpi-change-tag">+12%</span>
+                </div>
+                <div class="kpi-desc">Based on GSTR-1 filings</div>
+            </div>
+
+            <!-- Outstanding Card -->
+            <div class="kpi-card kpi-outstanding">
+                <div class="kpi-label">Outstanding</div>
+                <div class="kpi-value-row">
+                    <div class="kpi-value red-text">₹3,12,000</div>
+                </div>
+                <div class="kpi-desc">Overdue by 15+ days</div>
+            </div>
+
+            <!-- Active Invoices Card -->
+            <div class="kpi-card kpi-active">
+                <div class="kpi-label">Active Invoices</div>
+                <div class="kpi-value-row">
+                    <div class="kpi-value">42</div>
+                </div>
+                <div class="kpi-desc">Generated this month</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Features Section (Precision Engineering) -->
+    <section class="features-section">
+        <div class="section-container">
+            <div class="section-header">
+                <h2 class="section-title">Precision Engineering for Business</h2>
+            </div>
+
+            <div class="features-grid">
+                <!-- Card 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <!-- Sequential List Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="feature-title">Sequential Invoicing</h3>
+                        <p class="feature-desc">Gap-free numbering protocols required for GST audits. Custom prefixes for different financial years or branches.</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <!-- Calculator Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="feature-title">GST Compliance Math</h3>
+                        <p class="feature-desc">Real-time validation of rates (5%, 12%, 18%, 28%) and automatic state-specific tax distribution.</p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <!-- Star Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.961 0 1.36 1.246.588 1.81l-3.974 2.89a1 1 0 00-.364 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.89a1 1 0 00-1.176 0l-3.976 2.89c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.364-1.118l-3.974-2.89c-.773-.564-.373-1.81.588-1.81h4.907a1 1 0 00.95-.69l1.519-4.674z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="feature-title">Favorites & Sorting</h3>
+                        <p class="feature-desc">Pin important invoices to your favorites list and sort them dynamically by date, client, or total amount.</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <!-- Analytics Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="feature-title">Business Analytics</h3>
+                        <p class="feature-desc">Deep dive reports on tax collection, outstanding credits, and vendor wise revenue performance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Excel Bulk Import Section -->
+    <section class="showcase-section">
+        <div class="section-container showcase-grid">
+            <!-- Left Side Content -->
+            <div class="showcase-content">
+                <h2 class="showcase-title">Bulk Import from Excel</h2>
+                <ul class="showcase-list">
+                    <!-- Item 1 -->
+                    <li class="showcase-item">
+                        <div class="showcase-icon-wrapper">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="showcase-item-title">Bulk Customer Onboarding</h3>
+                            <p class="showcase-item-desc">Import your entire client directory in seconds using our standard Excel template.</p>
+                        </div>
+                    </li>
+
+                    <!-- Item 2 -->
+                    <li class="showcase-item">
+                        <div class="showcase-icon-wrapper">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="showcase-item-title">Historical Data Migration</h3>
+                            <p class="showcase-item-desc">Effortlessly bring in past transactional records to keep your analytics complete and accurate.</p>
+                        </div>
+                    </li>
+
+                    <!-- Item 3 -->
+                    <li class="showcase-item">
+                        <div class="showcase-icon-wrapper">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="showcase-item-title">Error Validation</h3>
+                            <p class="showcase-item-desc">Automatic checking for GSTIN formats and data consistency during the upload process.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right Side Image (User Uploaded Mockup) -->
+            <div class="showcase-image-wrapper">
+                <img src="{{ url_for('static', filename='images/mockup.png') }}" alt="BillFlow Excel Import Mockup" class="showcase-image">
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Ledger Reporting Section -->
+    <section class="ledger-section">
+        <div class="section-container ledger-grid">
+            <div class="ledger-content-wrapper">
+                <h2 class="ledger-title">Automated Ledger Reporting</h2>
+                <ul class="ledger-list">
+                    <li class="ledger-item">
+                        <div class="ledger-bullet">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div class="ledger-item-text">
+                            Intrastate vs interstate validation for every transaction to ensure error-free GSTR-1 filings.
+                        </div>
+                    </li>
+                    <li class="ledger-item">
+                        <div class="ledger-bullet">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div class="ledger-item-text">
+                            Instant generator of GST vs. CGST/SGST ledger reports for reconciliations.
+                        </div>
+                    </li>
+                    <li class="ledger-item">
+                        <div class="ledger-bullet">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div class="ledger-item-text">
+                            Integrated state session for valid Place of Supply determination.
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Ledger Table Preview Card -->
+            <div class="ledger-table-card">
+                <div class="ledger-table-header">Product / HSN Summary</div>
+                <table class="ledger-table">
+                    <tr>
+                        <td class="dim-text">HSN 9983</td>
+                        <td class="text-right strong-text">₹85,000 <span class="dim-text">(18%)</span></td>
+                    </tr>
+                    <tr>
+                        <td class="dim-text">HSN 9987</td>
+                        <td class="text-right strong-text">₹12,400 <span class="dim-text">(12%)</span></td>
+                    </tr>
+                    <tr>
+                        <td class="strong-text">Total Taxable</td>
+                        <td class="text-right strong-text" style="color: #2563eb;">₹97,400</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. Bottom CTA Section -->
+    <section class="cta-section">
+        <div class="cta-container">
+            <h2 class="cta-title">Stop reconciling GST by hand.</h2>
+            <p class="cta-desc">Join 1,200+ small businesses who automated their financial workflow today.</p>
+            <a href="{{ url_for('login') }}" class="btn-cta">Create Account in Minutes</a>
+        </div>
+    </section>
+
+    <!-- 7. Footer -->
+    <footer class="landing-footer">
+        <div class="footer-container">
+            <div class="footer-grid">
+                <!-- Column 1 -->
+                <div class="footer-brand">
+                    <div class="brand-logo">Bill<span>Flow</span></div>
+                    <p class="brand-desc">Built for active compliance, designed for modern firms.</p>
+                </div>
+
+                <!-- Column 2 -->
+                <div>
+                    <h4 class="footer-column-title">Product</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('login') }}" class="footer-link">Features</a></li>
+                        <li><a href="{{ url_for('login') }}" class="footer-link">Compliance</a></li>
+                        <li><a href="{{ url_for('login') }}" class="footer-link">Analytics</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 3 -->
+                <div>
+                    <h4 class="footer-column-title">Legal</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('login') }}" class="footer-link">Pricing</a></li>
+                        <li><a href="{{ url_for('login') }}" class="footer-link">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                &copy; 2026 BillFlow Technologies. GST Compliant & Secure.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

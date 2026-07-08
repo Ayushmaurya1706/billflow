@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BillFlow - Invoice Management{% endblock %}</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- 1. Navigation Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand" style="display: flex; align-items: center; justify-content: center; padding: 24px 16px;">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BillFlow Logo" style="height: 32px; width: auto;">
+            </div>
+            
+            <ul class="sidebar-nav">
+                <!-- Dashboard Link -->
+                <li class="sidebar-nav-item">
+                    <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <!-- Dashboard SVG Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                
+                <!-- Invoices Submenu Section -->
+                <li class="sidebar-nav-item" style="margin-top: 16px; margin-bottom: 16px;">
+                    <div style="padding: 0 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 8px;">
+                        Invoices
+                    </div>
+                    <ul style="list-style: none; padding-left: 8px; margin: 0;">
+                        <li style="margin-bottom: 4px;">
+                            <a href="{{ url_for('list_invoices') }}" class="sidebar-link {% if request.endpoint == 'list_invoices' %}active{% endif %}" style="padding: 8px 12px; font-size: 13px;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                </svg>
+                                All Invoices
+                            </a>
+                        </li>
+                        <li style="margin-bottom: 4px;">
+                            <a href="{{ url_for('create_invoice') }}" class="sidebar-link {% if request.endpoint == 'create_invoice' %}active{% endif %}" style="padding: 8px 12px; font-size: 13px;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                New Invoice
+                            </a>
+                        </li>
+                        <li style="margin-bottom: 4px;">
+                            <a href="{{ url_for('trash_invoices') }}" class="sidebar-link {% if request.endpoint == 'trash_invoices' %}active{% endif %}" style="padding: 8px 12px; font-size: 13px;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                Trash Bin
+                            </a>
+                        </li>
+                        <li style="margin-bottom: 4px;">
+                            <a href="{{ url_for('activity_logs') }}" class="sidebar-link {% if request.endpoint == 'activity_logs' %}active{% endif %}" style="padding: 8px 12px; font-size: 13px;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Activity Log
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
+                <!-- Customers Link -->
+                <li class="sidebar-nav-item">
+                    <a href="{{ url_for('customers') }}" class="sidebar-link {% if request.endpoint == 'customers' %}active{% endif %}">
+                        <!-- User Group SVG Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Customers
+                    </a>
+                </li>
+                
+                <!-- Reports Link -->
+                <li class="sidebar-nav-item">
+                    <a href="{{ url_for('reports_dashboard') }}" class="sidebar-link {% if request.endpoint == 'reports_dashboard' %}active{% endif %}">
+                        <!-- Chart Bar SVG Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path>
+                        </svg>
+                        Reports
+                    </a>
+                </li>
+                
+                <!-- Settings Link -->
+                <li class="sidebar-nav-item">
+                    <a href="{{ url_for('settings') }}" class="sidebar-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                        <!-- Settings SVG Icon -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Company Settings
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                V4.0.0 Stable
+            </div>
+        </aside>
+
+        <!-- 2. Main Page Layout Wrapper -->
+        <div class="main-wrapper">
+            
+            <!-- Top Navigation Header -->
+            <header class="top-bar">
+                <div class="page-title">
+                    {% block section_title %}Dashboard{% endblock %}
+                </div>
+                
+                <div class="user-profile" style="display: flex; align-items: center; gap: 16px;">
+                    {% if current_user.is_authenticated %}
+                        <span class="profile-name" style="font-weight: 600; color: #0f172a;">{{ current_user.full_name }}</span>
+                        <a href="{{ url_for('profile') }}" class="profile-link" style="font-size: 13px; color: #2563eb; text-decoration: none; font-weight: 600;">Profile</a>
+                        <a href="{{ url_for('logout') }}" class="logout-btn" style="font-size: 13px; font-weight: 600; color: #dc2626; text-decoration: none;">Log Out</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- 3. Dynamic Page Content Body -->
+            <main class="content-body">
+                <!-- Global Flask Flash Alerts -->
+                <div class="alert-container">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    <!-- Simple Info/Alert Icon -->
+                                    <svg style="width:20px; height:20px; margin-right:8px; flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {{ message|safe }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

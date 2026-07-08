@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}BillFlow - Invoice Directory{% endblock %}
+
+{% block section_title %}Invoices{% endblock %}
+
+{% block content %}
+<!-- Top Header & Primary Action CTA -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h1 style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0;">All Invoices</h1>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Track, manage, print, and export your billing records.</p>
+    </div>
+    <a href="{{ url_for('create_invoice') }}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        New Invoice
+    </a>
+</div>
+
+<!-- Integrated Search & Filter Controls -->
+<form method="GET" action="{{ url_for('list_invoices') }}" id="search-filter-form">
+    <div style="background-color: var(--bg-card); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            
+            <!-- Quick Search Input -->
+            <div style="flex-grow: 1; min-width: 250px; position: relative;">
+                <input type="text" name="search" id="invoice-search" class="form-control" placeholder="Search by invoice number or company name..." value="{{ request.args.get('search', '') }}" style="padding-left: 36px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-light);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            
+            <!-- Filter Toggle & Reset Buttons -->
+            <button type="button" id="toggle-filter-btn" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                </svg>
+                Filters Panel
+            </button>
+            
+            <a href="{{ url_for('list_invoices') }}" class="btn btn-secondary" style="color: var(--text-muted);">Reset</a>
+            
+            <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Apply</button>
+        </div>
+
+        <!-- Collapsible Filters Panel Details -->
+        <div id="filter-details" class="filter-panel" style="margin-top: 16px; display: none;">
+            
+            <!-- Customer Dropdown Filter -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="customer_id" class="form-label" style="font-size: 12px; margin-bottom: 6px;">Filter by Customer</label>
+                <select name="customer_id" id="customer_id" class="form-control" style="font-size: 13px; padding: 8px;">
+                    <option value="">-- All Customers --</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if request.args.get('customer_id') == customer.id|string %}selected{% endif %}>{{ customer.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status Dropdown Filter -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="status" class="form-label" style="font-size: 12px; margin-bottom: 6px;">Filter by Status</label>
+                <select name="status" id="status" class="form-control" style="font-size: 13px; padding: 8px;">
+                    <option value="">-- All Statuses --</option>
+                    <option value="Draft" {% if request.args.get('status') == 'Draft' %}selected{% endif %}>Draft</option>
+                    <option value="Sent" {% if request.args.get('status') == 'Sent' %}selected{% endif %}>Sent</option>
+                    <option value="Pending" {% if request.args.get('status') == 'Pending' %}selected{% endif %}>Pending</option>
+                    <option value="Paid" {% if request.args.get('status') == 'Paid' %}selected{% endif %}>Paid</option>
+                    <option value="Overdue" {% if request.args.get('status') == 'Overdue' %}selected{% endif %}>Overdue</option>
+                    <option value="Cancelled" {% if request.args.get('status') == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+
+            <!-- Date Range From -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="from_date" class="form-label" style="font-size: 12px; margin-bottom: 6px;">From Date</label>
+                <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request.args.get('from_date', '') }}" style="font-size: 13px; padding: 8px;">
+            </div>
+
+            <!-- Date Range To -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="to_date" class="form-label" style="font-size: 12px; margin-bottom: 6px;">To Date</label>
+                <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request.args.get('to_date', '') }}" style="font-size: 13px; padding: 8px;">
+            </div>
+
+            <!-- Favorites-only Checkbox -->
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; padding-bottom: 12px;">
+                <input type="checkbox" name="favorites_only" id="favorites_only" value="1" {% if request.args.get('favorites_only') == '1' %}checked{% endif %} style="width: 16px; height: 16px; cursor: pointer;">
+                <label for="favorites_only" class="form-label" style="font-size: 12px; margin-bottom: 0; cursor: pointer; user-select: none;">Starred Only</label>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Invoice Table Grid -->
+<div class="card" style="margin-bottom: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
+            Invoice Directory Registry
+        </h2>
+        
+        <!-- Export Actions Toolbar -->
+        <div style="display: flex; gap: 10px;">
+            <button type="button" id="export-excel-btn" class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Export Excel
+            </button>
+            <button type="button" id="export-csv-btn" class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Export CSV
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        {% if invoices %}
+            <table class="table" id="invoices-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Invoice No.</th>
+                        <th>Customer / Company</th>
+                        <th>Invoice Date</th>
+                        <th>Due Date</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th style="text-align: right; width: 220px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr class="invoice-row" style="{% if invoice.is_favorite %}background-color: rgba(234, 179, 8, 0.03);{% endif %}">
+                            
+                            <!-- Star Toggle Icon column -->
+                            <td>
+                                <form action="{{ url_for('toggle_invoice_favorite', invoice_id=invoice.id) }}" method="POST" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                                    <input type="hidden" name="status" value="{{ request.args.get('status', '') }}">
+                                    <input type="hidden" name="customer_id" value="{{ request.args.get('customer_id', '') }}">
+                                    <input type="hidden" name="from_date" value="{{ request.args.get('from_date', '') }}">
+                                    <input type="hidden" name="to_date" value="{{ request.args.get('to_date', '') }}">
+                                    <input type="hidden" name="favorites_only" value="{{ request.args.get('favorites_only', '') }}">
+                                    
+                                    <button type="submit" class="favorite-btn {% if invoice.is_favorite %}is-active{% endif %}" title="{% if invoice.is_favorite %}Unstar Invoice{% else %}Star Invoice{% endif %}">
+                                        <svg style="width: 18px; height: 18px;" fill="{% if invoice.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.9 1.522-.9 1.822 0l1.921 5.922a1 1 0 00.95.69h6.242c.9 0 1.278 1.157.53 1.706l-5.051 3.67a1 1 0 00-.364 1.118l1.921 5.922c.3.9-.755 1.688-1.54 1.118l-5.052-3.67a1 1 0 00-1.17 0l-5.052 3.67c-.784.57-1.838-.219-1.54-1.118l1.921-5.922a1 1 0 00-.364-1.118L2.05 11.245c-.748-.549-.37-1.706.53-1.706h6.242a1 1 0 00.95-.69l1.921-5.922z"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </td>
+
+                            <!-- Invoice Number -->
+                            <td>
+                                <strong>{{ invoice.invoice_number }}</strong>
+                            </td>
+
+                            <!-- Client Name -->
+                            <td>
+                                {{ invoice.client_name }}
+                            </td>
+
+                            <!-- Created Date -->
+                            <td>{{ invoice.date_created.strftime('%Y-%m-%d') }}</td>
+
+                            <!-- Due Date -->
+                            <td>
+                                {% if invoice.status != 'Paid' and invoice.due_date < today_date %}
+                                    <span style="color: var(--error); font-weight: 600;" title="Overdue!">{{ invoice.due_date.strftime('%Y-%m-%d') }}</span>
+                                {% else %}
+                                    {{ invoice.due_date.strftime('%Y-%m-%d') }}
+                                {% endif %}
+                            </td>
+
+                            <!-- Total Price -->
+                            <td>
+                                <strong>₹{{ "{:,.2f}".format(invoice.total_amount) }}</strong>
+                            </td>
+
+                            <!-- Status Badge -->
+                            <td>
+                                <span class="status-badge status-badge-{{ invoice.status|lower }}">{{ invoice.status }}</span>
+                            </td>
+
+                            <!-- Actions Toolbar -->
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 6px; justify-content: flex-end;">
+                                    
+                                    <!-- View CTA -->
+                                    <a href="{{ url_for('view_invoice_details', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px;" title="View Details">
+                                        View
+                                    </a>
+                                    
+                                    <!-- Edit CTA -->
+                                    <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px;" title="Edit Invoice">
+                                        Edit
+                                    </a>
+
+                                    <!-- Print CTA -->
+                                    <a href="{{ url_for('view_invoice_details', invoice_id=invoice.id) }}?print=1" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px;" title="Print PDF">
+                                        Print
+                                    </a>
+                                    
+                                    <!-- Soft Delete CTA -->
+                                    <form action="{{ url_for('trash_invoice', invoice_id=invoice.id) }}" method="POST" onsubmit="return confirm('Move this invoice to the Trash Bin? You can restore it later.');" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; color: var(--error); border-color: rgba(239, 68, 68, 0.2);" title="Move to Trash">
+                                            Delete
+                                        </button>
+                                    </form>
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <!-- Blank State Display -->
+            <div style="text-align: center; padding: 40px 20px;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 48px; height: 48px; color: var(--text-light); margin-bottom: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0;">No Invoices Found</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; max-width: 320px; margin-left: auto; margin-right: auto;">
+                    We couldn't find any invoices matching your search or filters. Create a new invoice or adjust your criteria.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Collapsible Filters Panel toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('toggle-filter-btn');
+        const filterPanel = document.getElementById('filter-details');
+        
+        // Show panel if filters are active on load
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('customer_id') || urlParams.has('status') || urlParams.has('from_date') || urlParams.has('to_date') || urlParams.has('favorites_only')) {
+            filterPanel.style.display = 'grid';
+            toggleBtn.classList.add('active');
+            toggleBtn.style.color = '#fff';
+            toggleBtn.style.backgroundColor = 'var(--primary)';
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            if (filterPanel.style.display === 'none' || filterPanel.style.display === '') {
+                filterPanel.style.display = 'grid';
+                toggleBtn.style.color = '#fff';
+                toggleBtn.style.backgroundColor = 'var(--primary)';
+            } else {
+                filterPanel.style.display = 'none';
+                toggleBtn.style.color = '';
+                toggleBtn.style.backgroundColor = '';
+            }
+        });
+
+        // Bind exports trigger clicks
+        const exportExcelBtn = document.getElementById('export-excel-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+
+        if (exportExcelBtn) {
+            exportExcelBtn.addEventListener('click', function() {
+                submitExport('excel');
+            });
+        }
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', function() {
+                submitExport('csv');
+            });
+        }
+
+        function submitExport(format) {
+            const form = document.getElementById('search-filter-form');
+            const inputFormat = document.createElement('input');
+            inputFormat.type = 'hidden';
+            inputFormat.name = 'export';
+            inputFormat.value = format;
+            form.appendChild(inputFormat);
+            
+            form.submit();
+            
+            setTimeout(() => {
+                form.removeChild(inputFormat);
+            }, 100);
+        }
+    });
+</script>
+{% endblock %}

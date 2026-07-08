@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - BillFlow{% endblock %}
+
+{% block section_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- 1. KPI Statistics Grid -->
+<div class="kpi-grid">
+    <!-- Total Invoiced -->
+    <div class="kpi-card">
+        <div class="kpi-title">Total Invoiced</div>
+        <div class="kpi-value">₹{{ "{:,.2f}".format(stats.total_invoiced) }}</div>
+    </div>
+    
+    <!-- Total Paid -->
+    <div class="kpi-card" style="border-left: 4px solid var(--success);">
+        <div class="kpi-title" style="color: var(--success);">Total Paid (Revenue)</div>
+        <div class="kpi-value" style="color: var(--success);">₹{{ "{:,.2f}".format(stats.total_paid) }}</div>
+    </div>
+    
+    <!-- Total Unpaid -->
+    <div class="kpi-card" style="border-left: 4px solid var(--error);">
+        <div class="kpi-title" style="color: var(--error);">Outstanding</div>
+        <div class="kpi-value" style="color: var(--error);">₹{{ "{:,.2f}".format(stats.total_unpaid) }}</div>
+    </div>
+    
+    <!-- Total Invoices Count -->
+    <div class="kpi-card">
+        <div class="kpi-title">Invoices Count</div>
+        <div class="kpi-value">{{ stats.count }}</div>
+    </div>
+</div>
+
+<!-- 2. Invoice History Card Table -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+        <h2 style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Invoice History</h2>
+        
+        <!-- Search bar (Version 2 prep, functional for basic filtering via JS) -->
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <input type="text" id="search-input" class="form-control form-control-sm" style="width: 200px;" placeholder="Search client or invoice...">
+            <a href="{{ url_for('create_invoice') }}" class="btn btn-primary btn-sm">
+                + New Invoice
+            </a>
+        </div>
+    </div>
+
+    <!-- 3. Dynamic History Table -->
+    <div class="table-responsive">
+        {% if invoices %}
+            <table class="table" id="invoices-table">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Client</th>
+                        <th>Created Date</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr class="invoice-row">
+                            <td class="search-inv"><strong>{{ invoice.invoice_number }}</strong></td>
+                            <td class="search-client">{{ invoice.client_name }}</td>
+                            <td>{{ invoice.date_created.strftime('%d-%b-%Y') }}</td>
+                            <td>{{ invoice.due_date.strftime('%d-%b-%Y') }}</td>
+                            <td><strong>₹{{ "{:,.2f}".format(invoice.total_amount) }}</strong></td>
+                            <td>
+                                <span class="badge badge-{{ invoice.status.lower() }}">
+                                    {{ invoice.status }}
+                                </span>
+                            </td>
+                            <td style="text-align: right; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+                                <!-- Mark as Paid option (for Unpaid invoices) -->
+                                {% if invoice.status == 'Unpaid' %}
+                                    <form action="{{ url_for('mark_paid', invoice_id=invoice.id) }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--success); border-color: var(--success);" title="Mark as Paid">
+                                            Mark Paid
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                
+                                <!-- Download Button -->
+                                <a href="{{ url_for('download_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" title="Download PDF">
+                                    <svg style="width:14px; height:14px; margin-right:4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    PDF
+                                </a>
+                                
+                                <!-- Duplicate Button -->
+                                <a href="{{ url_for('duplicate_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" title="Duplicate Invoice" style="color: var(--primary); border-color: var(--border-color); padding: 6px 10px;">
+                                    Duplicate
+                                </a>
+                                
+                                <!-- Edit Button -->
+                                <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-secondary btn-sm" title="Edit Invoice" style="color: var(--text-primary); border-color: var(--border-color); padding: 6px 10px;">
+                                    Edit
+                                </a>
+
+                                <!-- Delete Button (Enclosed in a secure POST form with CSRF validation) -->
+                                <form action="{{ url_for('delete_invoice', invoice_id=invoice.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete/void this invoice? This cannot be undone.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--error); border-color: var(--border-color);" title="Delete Invoice">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <!-- Blank State -->
+            <div style="text-align: center; padding: 48px 24px; color: var(--text-muted);">
+                <svg style="width: 48px; height: 48px; margin-bottom: 16px; color: var(--text-light);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <p style="font-size: 14px; font-weight: 500; margin-bottom: 12px;">No invoices generated yet</p>
+                <a href="{{ url_for('create_invoice') }}" class="btn btn-primary btn-sm">
+                    Create Your First Invoice
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Client-side quick filter for invoices list
+    document.getElementById('search-input')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.invoice-row');
+        
+        rows.forEach(row => {
+            const invText = row.querySelector('.search-inv').textContent.toLowerCase();
+            const clientText = row.querySelector('.search-client').textContent.toLowerCase();
+            
+            if (invText.includes(query) || clientText.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}

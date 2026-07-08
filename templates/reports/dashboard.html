@@ -1,0 +1,1148 @@
+{% extends 'base.html' %}
+
+{% block title %}Business Reports & Analytics - BillFlow{% endblock %}
+
+{% block section_title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- CSS Styles for Analytics Dashboard -->
+<style>
+    .filter-bar-card {
+        background: linear-gradient(135deg, #1e1e38, #111125);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        margin-bottom: 24px;
+        color: #fff;
+    }
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        align-items: end;
+    }
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    .stat-card {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+    .stat-icon {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        color: var(--primary);
+        opacity: 0.85;
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin: 8px 0 4px 0;
+    }
+    .stat-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-light);
+        letter-spacing: 0.5px;
+    }
+    .stat-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .chart-container-grid {
+        display: grid;
+        grid-template-columns: 1.3fr 0.7fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    @media (max-width: 992px) {
+        .chart-container-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .widget-card {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        min-height: 380px;
+    }
+    .tab-nav {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 24px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+    .tab-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+        color: var(--primary);
+    }
+    .tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+    .loader-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255,255,255,0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: var(--radius-md);
+        z-index: 10;
+    }
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .validation-error {
+        color: #ef4444;
+        font-size: 12px;
+        margin-top: 6px;
+        display: none;
+        font-weight: 600;
+    }
+    
+    /* Export Dropdown Button Styling */
+    .export-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .export-dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        background-color: #ffffff;
+        min-width: 140px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+        z-index: 100;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .export-dropdown-content a {
+        color: var(--text-primary);
+        padding: 10px 14px;
+        text-decoration: none;
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+    .export-dropdown-content a:hover {
+        background-color: #f1f5f9;
+        color: var(--primary);
+    }
+    .export-dropdown:hover .export-dropdown-content {
+        display: block;
+    }
+
+    /* Comparison Card Styling */
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    @media (max-width: 768px) {
+        .comparison-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .comp-badge-positive {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    .comp-badge-negative {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    .comp-val-positive {
+        color: #10b981;
+    }
+    .comp-val-negative {
+        color: #ef4444;
+    }
+</style>
+
+<!-- 1. Global Interactive Filters Card -->
+<div class="filter-bar-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: rgba(255,255,255,0.85);">
+            Global Range Filters
+        </h3>
+        <span style="font-size: 11px; padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #fff; font-weight: 600;">IST Timezone</span>
+    </div>
+    
+    <div class="filter-grid">
+        <div class="form-group" style="margin: 0;">
+            <label for="date-range-select" class="form-label" style="color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 6px;">Select Period</label>
+            <select id="date-range-select" class="form-control" style="background-color: #2e2e48; border-color: rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last_7_days" selected>Last 7 Days</option>
+                <option value="last_30_days">Last 30 Days</option>
+                <option value="this_month">This Month</option>
+                <option value="this_quarter">This Quarter</option>
+                <option value="this_year">This Year</option>
+                <option value="custom">Custom Date Range</option>
+            </select>
+        </div>
+        
+        <div class="form-group custom-date-input" style="margin: 0; display: none;">
+            <label for="start-date" class="form-label" style="color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 6px;">Start Date</label>
+            <input type="date" id="start-date" class="form-control" style="background-color: #2e2e48; border-color: rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+        </div>
+        
+        <div class="form-group custom-date-input" style="margin: 0; display: none;">
+            <label for="end-date" class="form-label" style="color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 6px;">End Date</label>
+            <input type="date" id="end-date" class="form-control" style="background-color: #2e2e48; border-color: rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+        </div>
+        
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="apply-filter-btn" class="btn btn-primary" style="height: 38px; font-size: 13px; font-weight: 600; padding: 0 20px;">
+                Apply Filter
+            </button>
+        </div>
+    </div>
+    <div id="filter-error-msg" class="validation-error">⚠️ Start Date cannot be later than End Date.</div>
+</div>
+
+<!-- 2. Modular Phase Tabs Navigation -->
+<div class="tab-nav">
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard Overview</button>
+    <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')">Customer Analytics</button>
+    <button class="tab-btn" data-tab="products" onclick="switchTab('products')">Product Analytics</button>
+    <button class="tab-btn" data-tab="gst" onclick="switchTab('gst')">GST Reports</button>
+    <button class="tab-btn" data-tab="comparison" onclick="switchTab('comparison')">Revenue Comparison</button>
+</div>
+
+<!-- 3. Dynamic Section Containers -->
+
+<!-- tab: Dashboard Overview (Phase 1) -->
+<div id="tab-content-dashboard" class="tab-content">
+    
+    <!-- Action / Export bar -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div class="export-dropdown">
+            <button class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px;">
+                <span>Export Revenue Report</span>
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div class="export-dropdown-content">
+                <a onclick="exportData('revenue', 'excel')">As Excel (.xlsx)</a>
+                <a onclick="exportData('revenue', 'csv')">As CSV (.csv)</a>
+                <a onclick="exportData('revenue', 'pdf')">As PDF (.pdf)</a>
+            </div>
+        </div>
+        <div class="export-dropdown">
+            <button class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px;">
+                <span>Export Invoice Report</span>
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div class="export-dropdown-content">
+                <a onclick="exportData('invoices', 'excel')">As Excel (.xlsx)</a>
+                <a onclick="exportData('invoices', 'csv')">As CSV (.csv)</a>
+                <a onclick="exportData('invoices', 'pdf')">As PDF (.pdf)</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Cards grid -->
+    <div class="analytics-grid">
+        <!-- Card: Total Revenue -->
+        <div class="stat-card" id="card-revenue">
+            <div class="stat-icon">
+                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Total Revenue</div>
+            <div class="stat-value" id="val-revenue">₹0.00</div>
+            <div class="stat-desc" id="desc-revenue">Sum of non-draft invoice values</div>
+        </div>
+
+        <!-- Card: Total Invoices -->
+        <div class="stat-card" id="card-invoices">
+            <div class="stat-icon">
+                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Total Invoices</div>
+            <div class="stat-value" id="val-invoices">0</div>
+            <div class="stat-desc" id="desc-invoices">Total invoice counts</div>
+        </div>
+
+        <!-- Card: Outstanding Balance -->
+        <div class="stat-card" id="card-outstanding">
+            <div class="stat-icon">
+                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Outstanding Amount</div>
+            <div class="stat-value" id="val-outstanding">₹0.00</div>
+            <div class="stat-desc" id="desc-outstanding">Sum of unpaid pending values</div>
+        </div>
+
+        <!-- Card: Total Customers -->
+        <div class="stat-card" id="card-customers">
+            <div class="stat-icon">
+                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Total Customers</div>
+            <div class="stat-value" id="val-customers">0</div>
+            <div class="stat-desc">Unique customers directory</div>
+        </div>
+    </div>
+
+    <!-- Status Sub-cards row -->
+    <div class="analytics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--success);">Paid Invoices</div>
+            <div class="stat-value" id="val-paid" style="font-size: 20px; color: var(--success);">0</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--primary);">Pending/Sent</div>
+            <div class="stat-value" id="val-pending" style="font-size: 20px; color: var(--primary);">0</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--error);">Overdue</div>
+            <div class="stat-value" id="val-overdue" style="font-size: 20px; color: var(--error);">0</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--text-light);">Cancelled</div>
+            <div class="stat-value" id="val-cancelled" style="font-size: 20px; color: var(--text-light);">0</div>
+        </div>
+    </div>
+
+    <!-- Chart Cards Containers -->
+    <div class="chart-container-grid">
+        <div class="widget-card" id="widget-revenue-trend" style="position: relative;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
+                Revenue Trend Chart
+            </h3>
+            <canvas id="revenueTrendChart" style="max-height: 300px;"></canvas>
+        </div>
+        
+        <div class="widget-card" id="widget-status-pie" style="position: relative;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
+                Invoice Distribution
+            </h3>
+            <canvas id="statusPieChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- tab: Customer Analytics (Phase 2) -->
+<div id="tab-content-customers" class="tab-content" style="display: none;">
+    <div class="card" id="widget-customers-list" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                Customer Revenue & Growth Analytics
+            </h3>
+            <div class="export-dropdown">
+                <button class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px;">
+                    <span>Export Report</span>
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div class="export-dropdown-content">
+                    <a onclick="exportData('customers', 'excel')">As Excel (.xlsx)</a>
+                    <a onclick="exportData('customers', 'csv')">As CSV (.csv)</a>
+                    <a onclick="exportData('customers', 'pdf')">As PDF (.pdf)</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table" style="font-size: 13px;">
+                <thead>
+                    <tr style="background-color: #f8fafc;">
+                        <th>Customer / Company</th>
+                        <th>Email</th>
+                        <th style="text-align: right;">Total Revenue</th>
+                        <th style="text-align: center;">Invoices</th>
+                        <th style="text-align: right;">Avg Invoice Value</th>
+                        <th style="text-align: right;">Outstanding Balance</th>
+                        <th>Last Invoice Date</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="customers-report-tbody">
+                    <!-- Javascript populated -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- tab: Product Analytics (Phase 3) -->
+<div id="tab-content-products" class="tab-content" style="display: none;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; align-items: start;">
+        
+        <!-- Widget: Highest Revenue Products -->
+        <div class="card" id="widget-highest-rev-products" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 0;">
+            <h3 style="font-size: 14px; font-weight: 800; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--success);"></span>
+                Highest Revenue Products (Top 10)
+            </h3>
+            <div class="table-responsive">
+                <table class="table" style="font-size: 12px;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th>Product Name</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Avg Price</th>
+                            <th style="text-align: right;">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="highest-rev-products-tbody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Widget: Top Products by Volume -->
+        <div class="card" id="widget-top-qty-products" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 0;">
+            <h3 style="font-size: 14px; font-weight: 800; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--primary);"></span>
+                Top Selling Products by Volume (Top 10)
+            </h3>
+            <div class="table-responsive">
+                <table class="table" style="font-size: 12px;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th>Product Name</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Avg Price</th>
+                            <th style="text-align: right;">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-qty-products-tbody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Row 2: Top Services by Volume -->
+    <div class="card" id="widget-top-qty-services" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 0;">
+        <h3 style="font-size: 14px; font-weight: 800; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #f59e0b;"></span>
+            Top Selling Services by Volume (Top 10)
+        </h3>
+        <div class="table-responsive">
+            <table class="table" style="font-size: 12px;">
+                <thead>
+                    <tr style="background-color: #f8fafc;">
+                        <th>Service Description</th>
+                        <th style="text-align: center;">Qty</th>
+                        <th style="text-align: right;">Avg Rate</th>
+                        <th style="text-align: right;">Total Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="top-qty-services-tbody">
+                    <!-- JS populated -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- tab: GST Reports (Phase 4) -->
+<div id="tab-content-gst" class="tab-content" style="display: none;">
+    <!-- GST Summary Stats Row -->
+    <div class="analytics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 24px;">
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--text-muted);">Taxable Revenue</div>
+            <div class="stat-value" id="gst-val-taxable" style="font-size: 20px; color: var(--text-primary);">₹0.00</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--primary);">CGST Collected</div>
+            <div class="stat-value" id="gst-val-cgst" style="font-size: 20px; color: var(--primary);">₹0.00</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--primary);">SGST Collected</div>
+            <div class="stat-value" id="gst-val-sgst" style="font-size: 20px; color: var(--primary);">₹0.00</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: #f59e0b;">IGST Collected</div>
+            <div class="stat-value" id="gst-val-igst" style="font-size: 20px; color: #f59e0b;">₹0.00</div>
+        </div>
+        <div class="stat-card" style="padding: 16px 20px;">
+            <div class="stat-title" style="color: var(--success);">Total GST</div>
+            <div class="stat-value" id="gst-val-total" style="font-size: 20px; color: var(--success);">₹0.00</div>
+        </div>
+    </div>
+
+    <!-- GST Ledger Card -->
+    <div class="card" id="widget-gst-list" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                GST Tax Transaction Log (Ledger)
+            </h3>
+            <div class="export-dropdown">
+                <button class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px;">
+                    <span>Export GST Report</span>
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div class="export-dropdown-content">
+                    <a onclick="exportData('gst', 'excel')">As Excel (.xlsx)</a>
+                    <a onclick="exportData('gst', 'csv')">As CSV (.csv)</a>
+                    <a onclick="exportData('gst', 'pdf')">As PDF (.pdf)</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table" style="font-size: 12px;">
+                <thead>
+                    <tr style="background-color: #f8fafc;">
+                        <th>Invoice No</th>
+                        <th>Date</th>
+                        <th>Client / Company</th>
+                        <th>Client GSTIN</th>
+                        <th style="text-align: right;">Taxable Value</th>
+                        <th style="text-align: right;">CGST</th>
+                        <th style="text-align: right;">SGST</th>
+                        <th style="text-align: right;">IGST</th>
+                        <th style="text-align: right;">Total GST</th>
+                        <th style="text-align: right;">Grand Total</th>
+                    </tr>
+                </thead>
+                <tbody id="gst-report-tbody">
+                    <!-- Javascript populated -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- tab: Revenue Comparison (Phase 5) -->
+<div id="tab-content-comparison" class="tab-content" style="display: none;">
+    <div class="comparison-grid">
+        <!-- Card MoM -->
+        <div class="card" id="widget-mom-comparison" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); background-color: #fff; border-radius: var(--radius-md);">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
+                Month-over-Month (MoM) Growth
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);" id="lbl-prev-month">Previous Month</span>
+                    <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);" id="val-prev-month-rev">₹0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);" id="lbl-curr-month">Current Month</span>
+                    <span style="font-size: 16px; font-weight: 700; color: var(--primary);" id="val-curr-month-rev">₹0.00</span>
+                </div>
+                <div style="height: 1px; background-color: var(--border-color);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Revenue Difference</span>
+                    <span style="font-size: 16px; font-weight: 700;" id="val-month-diff">₹0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Percentage Growth</span>
+                    <span class="badge" id="badge-month-growth" style="padding: 4px 8px; border-radius: 4px; font-weight: 700;">0.00%</span>
+                </div>
+                <div style="height: 1px; background-color: var(--border-color);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Invoice Count (Prev)</span>
+                    <span style="font-size: 14px; font-weight: 600;" id="val-prev-month-count">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Invoice Count (Curr)</span>
+                    <span style="font-size: 14px; font-weight: 600;" id="val-curr-month-count">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Invoice Difference</span>
+                    <span style="font-size: 15px; font-weight: 700;" id="val-month-count-diff">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card YoY -->
+        <div class="card" id="widget-yoy-comparison" style="position: relative; padding: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); background-color: #fff; border-radius: var(--radius-md);">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">
+                Year-over-Year (YoY) Growth
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);" id="lbl-prev-year">Previous Year</span>
+                    <span style="font-size: 16px; font-weight: 600; color: var(--text-primary);" id="val-prev-year-rev">₹0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);" id="lbl-curr-year">Current Year</span>
+                    <span style="font-size: 16px; font-weight: 700; color: var(--primary);" id="val-curr-year-rev">₹0.00</span>
+                </div>
+                <div style="height: 1px; background-color: var(--border-color);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Revenue Difference</span>
+                    <span style="font-size: 16px; font-weight: 700;" id="val-year-diff">₹0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Percentage Growth</span>
+                    <span class="badge" id="badge-year-growth" style="padding: 4px 8px; border-radius: 4px; font-weight: 700;">0.00%</span>
+                </div>
+                <div style="height: 1px; background-color: var(--border-color);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Invoice Count (Prev)</span>
+                    <span style="font-size: 14px; font-weight: 600;" id="val-prev-year-count">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Invoice Count (Curr)</span>
+                    <span style="font-size: 14px; font-weight: 600;" id="val-curr-year-count">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Invoice Difference</span>
+                    <span style="font-size: 15px; font-weight: 700;" id="val-year-count-diff">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4. Interactive JavaScript Loader -->
+<script>
+    // Tab switching handler
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+        
+        const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+        
+        const targetContent = document.getElementById('tab-content-' + tabId);
+        if (targetContent) targetContent.style.display = 'block';
+
+        // Update URL query parameter
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabId);
+        window.history.pushState({}, '', url);
+
+        // Load specific tab dataset to execute independent widget loading
+        if (tabId === 'dashboard') {
+            loadDashboardTab();
+        } else if (tabId === 'customers') {
+            loadCustomersTab();
+        } else if (tabId === 'products') {
+            loadProductsTab();
+        } else if (tabId === 'gst') {
+            loadGstTab();
+        } else if (tabId === 'comparison') {
+            loadComparisonTab();
+        }
+    }
+
+    // Toggle custom date range fields visibility based on dropdown select choice
+    const rangeSelect = document.getElementById('date-range-select');
+    const customDateInputs = document.querySelectorAll('.custom-date-input');
+    
+    rangeSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customDateInputs.forEach(el => el.style.display = 'block');
+        } else {
+            customDateInputs.forEach(el => el.style.display = 'none');
+        }
+    });
+
+    // Helper loading indicator overlays
+    function showLoading(containerId) {
+        const container = document.getElementById(containerId);
+        if (container && !container.querySelector('.loader-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'loader-overlay';
+            overlay.innerHTML = '<div class="spinner"></div>';
+            container.style.position = 'relative';
+            container.appendChild(overlay);
+        }
+    }
+
+    // Helper loading indicator overlays removal
+    function hideLoading(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const overlay = container.querySelector('.loader-overlay');
+            if (overlay) container.removeChild(overlay);
+        }
+    }
+
+    // Chart references
+    let revenueTrendChart = null;
+    let statusPieChart = null;
+
+    function initCharts() {
+        // Line Chart for revenue trends
+        const ctxTrend = document.getElementById('revenueTrendChart').getContext('2d');
+        revenueTrendChart = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Revenue (₹)',
+                    data: [],
+                    borderColor: '#4F46E5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Revenue: ₹' + context.parsed.y.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Pie/Doughnut Chart for invoice distribution
+        const ctxPie = document.getElementById('statusPieChart').getContext('2d');
+        statusPieChart = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['Paid', 'Pending/Sent', 'Overdue', 'Cancelled'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#10B981', '#3B82F6', '#EF4444', '#9CA3AF']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Fetch common request parameters
+    function getFilterParams() {
+        const period = rangeSelect.value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        const errorMsg = document.getElementById('filter-error-msg');
+
+        if (period === 'custom') {
+            if (startDate && endDate && startDate > endDate) {
+                errorMsg.style.display = 'block';
+                return null; // Halt query execution
+            }
+        }
+        errorMsg.style.display = 'none';
+
+        return new URLSearchParams({
+            range: period,
+            start_date: startDate,
+            end_date: endDate
+        });
+    }
+
+    // Export report utility linked to backend
+    function exportData(reportType, format) {
+        const params = getFilterParams();
+        if (!params) return;
+        params.set('format', format);
+        window.location.href = `/api/reports/export/${reportType}?` + params.toString();
+    }
+
+    // Trigger loading of all components based on active tab
+    function reloadAllActiveTab() {
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab) {
+            const tabId = activeTab.getAttribute('data-tab');
+            switchTab(tabId);
+        }
+    }
+
+    // Tab 1: Dashboard Overview Load Logic
+    async function loadDashboardTab() {
+        const params = getFilterParams();
+        if (!params) return;
+
+        showLoading('card-revenue');
+        showLoading('card-outstanding');
+        showLoading('card-invoices');
+        showLoading('card-customers');
+        showLoading('widget-revenue-trend');
+        showLoading('widget-status-pie');
+
+        try {
+            // 1. Fetch summary cards
+            const resSummary = await fetch('/api/reports/summary?' + params.toString()).then(r => r.json());
+            if (resSummary.success) {
+                document.getElementById('val-revenue').innerText = '₹' + resSummary.total_revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('val-outstanding').innerText = '₹' + resSummary.outstanding_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('val-invoices').innerText = resSummary.total_invoices;
+                document.getElementById('val-customers').innerText = resSummary.total_customers;
+                
+                document.getElementById('val-paid').innerText = resSummary.paid_count;
+                document.getElementById('val-pending').innerText = resSummary.pending_count;
+                document.getElementById('val-overdue').innerText = resSummary.overdue_count;
+                document.getElementById('val-cancelled').innerText = resSummary.cancelled_count;
+            }
+
+            // 2. Fetch revenue lines dataset
+            const resRevenue = await fetch('/api/reports/revenue?' + params.toString()).then(r => r.json());
+            if (resRevenue.success) {
+                const labels = resRevenue.data.map(item => item.date);
+                const values = resRevenue.data.map(item => item.revenue);
+                
+                revenueTrendChart.data.labels = labels;
+                revenueTrendChart.data.datasets[0].data = values;
+                revenueTrendChart.update();
+            }
+
+            // 3. Fetch invoice status datasets
+            const resStatus = await fetch('/api/reports/invoice-status?' + params.toString()).then(r => r.json());
+            if (resStatus.success) {
+                const paidVal = resStatus.data['Paid'] || 0;
+                const pendingVal = (resStatus.data['Pending'] || 0) + (resStatus.data['Sent'] || 0);
+                const overdueVal = resStatus.data['Overdue'] || 0;
+                const cancelledVal = resStatus.data['Cancelled'] || 0;
+
+                statusPieChart.data.datasets[0].data = [paidVal, pendingVal, overdueVal, cancelledVal];
+                statusPieChart.update();
+            }
+        } catch (err) {
+            console.error("Dashboard overview query failed", err);
+        } finally {
+            hideLoading('card-revenue');
+            hideLoading('card-outstanding');
+            hideLoading('card-invoices');
+            hideLoading('card-customers');
+            hideLoading('widget-revenue-trend');
+            hideLoading('widget-status-pie');
+        }
+    }
+
+    // Tab 2: Customers Analytics Load Logic
+    async function loadCustomersTab() {
+        const params = getFilterParams();
+        if (!params) return;
+
+        showLoading('widget-customers-list');
+        try {
+            const resCustomers = await fetch('/api/reports/customers?' + params.toString()).then(r => r.json());
+            if (resCustomers.success) {
+                const tbody = document.getElementById('customers-report-tbody');
+                tbody.innerHTML = '';
+                
+                if (resCustomers.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-light); font-weight: 500;">
+                                No customer data available.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    resCustomers.data.forEach(cust => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(cust.name)}</strong></td>
+                            <td>${escapeHtml(cust.email)}</td>
+                            <td style="text-align: right; font-weight: 600; color: var(--success);">₹${cust.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: center;">${cust.invoice_count}</td>
+                            <td style="text-align: right;">₹${cust.avg_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; font-weight: 600; color: ${cust.outstanding > 0 ? 'var(--error)' : 'var(--text-muted)'}">₹${cust.outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td>${cust.last_date}</td>
+                            <td style="text-align: right;">
+                                <a href="/reports/customers/${cust.id}" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                                    View Profile
+                                </a>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Customers query failed", err);
+        } finally {
+            hideLoading('widget-customers-list');
+        }
+    }
+
+    // Tab 3: Products Analytics Load Logic
+    async function loadProductsTab() {
+        const params = getFilterParams();
+        if (!params) return;
+
+        showLoading('widget-highest-rev-products');
+        showLoading('widget-top-qty-products');
+        showLoading('widget-top-qty-services');
+
+        try {
+            const resProducts = await fetch('/api/reports/products?' + params.toString()).then(r => r.json());
+            if (resProducts.success) {
+                // Populate Highest Revenue Products
+                const tbodyRev = document.getElementById('highest-rev-products-tbody');
+                tbodyRev.innerHTML = '';
+                if (resProducts.highest_revenue_products.length === 0) {
+                    tbodyRev.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light); padding: 30px;">No products available.</td></tr>';
+                } else {
+                    resProducts.highest_revenue_products.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(p.name)}</strong></td>
+                            <td style="text-align: center;">${p.quantity}</td>
+                            <td style="text-align: right;">₹${p.avg_price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; font-weight: 600; color: var(--success);">₹${p.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        `;
+                        tbodyRev.appendChild(tr);
+                    });
+                }
+
+                // Populate Top Products by Qty
+                const tbodyQty = document.getElementById('top-qty-products-tbody');
+                tbodyQty.innerHTML = '';
+                if (resProducts.top_products.length === 0) {
+                    tbodyQty.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light); padding: 30px;">No products available.</td></tr>';
+                } else {
+                    resProducts.top_products.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(p.name)}</strong></td>
+                            <td style="text-align: center; font-weight: 600; color: var(--primary);">${p.quantity}</td>
+                            <td style="text-align: right;">₹${p.avg_price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right;">₹${p.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        `;
+                        tbodyQty.appendChild(tr);
+                    });
+                }
+
+                // Populate Top Services by Qty
+                const tbodySvc = document.getElementById('top-qty-services-tbody');
+                tbodySvc.innerHTML = '';
+                if (resProducts.top_services.length === 0) {
+                    tbodySvc.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light); padding: 30px;">No services available.</td></tr>';
+                } else {
+                    resProducts.top_services.forEach(s => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(s.name)}</strong></td>
+                            <td style="text-align: center; font-weight: 600; color: #f59e0b;">${s.quantity}</td>
+                            <td style="text-align: right;">₹${s.avg_price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; font-weight: 600;">₹${s.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        `;
+                        tbodySvc.appendChild(tr);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Products query failed", err);
+        } finally {
+            hideLoading('widget-highest-rev-products');
+            hideLoading('widget-top-qty-products');
+            hideLoading('widget-top-qty-services');
+        }
+    }
+
+    // Tab 4: GST Reports Load Logic
+    async function loadGstTab() {
+        const params = getFilterParams();
+        if (!params) return;
+
+        showLoading('widget-gst-list');
+        try {
+            const resGst = await fetch('/api/reports/gst?' + params.toString()).then(r => r.json());
+            if (resGst.success) {
+                document.getElementById('gst-val-taxable').innerText = '₹' + resGst.taxable_revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('gst-val-cgst').innerText = '₹' + resGst.cgst_collected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('gst-val-sgst').innerText = '₹' + resGst.sgst_collected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('gst-val-igst').innerText = '₹' + resGst.igst_collected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('gst-val-total').innerText = '₹' + resGst.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                const tbodyGst = document.getElementById('gst-report-tbody');
+                tbodyGst.innerHTML = '';
+                if (resGst.invoices.length === 0) {
+                    tbodyGst.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-light); padding: 40px; font-weight: 500;">No invoices found for the selected period.</td></tr>';
+                } else {
+                    resGst.invoices.forEach(inv => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(inv.invoice_number)}</strong></td>
+                            <td>${inv.date}</td>
+                            <td><strong>${escapeHtml(inv.client_name)}</strong></td>
+                            <td><code>${escapeHtml(inv.client_gstin)}</code></td>
+                            <td style="text-align: right;">₹${inv.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; color: var(--primary);">₹${inv.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; color: var(--primary);">₹${inv.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; color: #f59e0b;">₹${inv.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; font-weight: 600; color: var(--success);">₹${inv.tax_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align: right; font-weight: 600;">₹${inv.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        `;
+                        tbodyGst.appendChild(tr);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("GST query failed", err);
+        } finally {
+            hideLoading('widget-gst-list');
+        }
+    }
+
+    // Tab 5: Revenue Comparison Load Logic
+    async function loadComparisonTab() {
+        showLoading('widget-mom-comparison');
+        showLoading('widget-yoy-comparison');
+
+        try {
+            const res = await fetch('/api/reports/revenue-comparison').then(r => r.json());
+            if (res.success) {
+                const formatCurrency = val => '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const renderDiffText = (diff, elementId) => {
+                    const el = document.getElementById(elementId);
+                    el.innerText = formatCurrency(Math.abs(diff));
+                    if (diff >= 0) {
+                        el.className = 'comp-val-positive';
+                        el.innerText = '+' + el.innerText;
+                    } else {
+                        el.className = 'comp-val-negative';
+                        el.innerText = '-' + el.innerText;
+                    }
+                };
+                
+                const renderCountText = (diff, elementId) => {
+                    const el = document.getElementById(elementId);
+                    el.innerText = Math.abs(diff);
+                    if (diff >= 0) {
+                        el.className = 'comp-val-positive';
+                        el.innerText = '+' + el.innerText;
+                    } else {
+                        el.className = 'comp-val-negative';
+                        el.innerText = '-' + el.innerText;
+                    }
+                };
+
+                const renderGrowthBadge = (pct, elementId) => {
+                    const el = document.getElementById(elementId);
+                    el.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+                    if (pct >= 0) {
+                        el.className = 'badge comp-badge-positive';
+                    } else {
+                        el.className = 'badge comp-badge-negative';
+                    }
+                };
+
+                // MoM
+                document.getElementById('lbl-prev-month').innerText = res.month.previous_label;
+                document.getElementById('lbl-curr-month').innerText = res.month.current_label;
+                document.getElementById('val-prev-month-rev').innerText = formatCurrency(res.month.previous_revenue);
+                document.getElementById('val-curr-month-rev').innerText = formatCurrency(res.month.current_revenue);
+                renderDiffText(res.month.revenue_diff, 'val-month-diff');
+                renderGrowthBadge(res.month.growth_pct, 'badge-month-growth');
+                document.getElementById('val-prev-month-count').innerText = res.month.previous_count;
+                document.getElementById('val-curr-month-count').innerText = res.month.current_count;
+                renderCountText(res.month.count_diff, 'val-month-count-diff');
+
+                // YoY
+                document.getElementById('lbl-prev-year').innerText = res.year.previous_label;
+                document.getElementById('lbl-curr-year').innerText = res.year.current_label;
+                document.getElementById('val-prev-year-rev').innerText = formatCurrency(res.year.previous_revenue);
+                document.getElementById('val-curr-year-rev').innerText = formatCurrency(res.year.current_year_revenue || res.year.current_revenue);
+                renderDiffText(res.year.revenue_diff, 'val-year-diff');
+                renderGrowthBadge(res.year.growth_pct, 'badge-year-growth');
+                document.getElementById('val-prev-year-count').innerText = res.year.previous_count;
+                document.getElementById('val-curr-year-count').innerText = res.year.current_count;
+                renderCountText(res.year.count_diff, 'val-year-count-diff');
+            }
+        } catch (err) {
+            console.error("Revenue comparison query failed", err);
+        } finally {
+            hideLoading('widget-mom-comparison');
+            hideLoading('widget-yoy-comparison');
+        }
+    }
+
+    // HTML escape utility
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Register handlers
+    document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        
+        // Parse URL tab parameter if any (e.g. ?tab=customers)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab') || 'dashboard';
+        switchTab(tabParam);
+        
+        document.getElementById('apply-filter-btn').addEventListener('click', reloadAllActiveTab);
+    });
+</script>
+{% endblock %}
