@@ -21,6 +21,18 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    def __init__(self, full_name=None, company_name=None, email=None, phone=None, password_hash=None, created_at=None, updated_at=None, **kwargs):
+        super().__init__(
+            full_name=full_name,
+            company_name=company_name,
+            email=email,
+            phone=phone,
+            password_hash=password_hash,
+            created_at=created_at,
+            updated_at=updated_at,
+            **kwargs
+        )
+
     def __repr__(self):
         return f"<User {self.email}>"
 
@@ -54,6 +66,19 @@ class CompanySettings(db.Model):
     pref_show_terms = db.Column(db.Boolean, default=True, nullable=False)
     pref_show_notes = db.Column(db.Boolean, default=True, nullable=False)
     pref_show_signatory = db.Column(db.Boolean, default=True, nullable=False)
+
+    def __init__(self, name=None, logo_path=None, gstin=None, address=None, email=None, phone=None,
+                 bank_name=None, bank_account=None, bank_ifsc=None, bank_account_name=None, bank_branch=None,
+                 upi_id=None, terms_conditions=None, pref_show_hsn_summary=True, pref_show_bank_details=True,
+                 pref_show_terms=True, pref_show_notes=True, pref_show_signatory=True, **kwargs):
+        super().__init__(
+            name=name, logo_path=logo_path, gstin=gstin, address=address, email=email, phone=phone,
+            bank_name=bank_name, bank_account=bank_account, bank_ifsc=bank_ifsc, bank_account_name=bank_account_name,
+            bank_branch=bank_branch, upi_id=upi_id, terms_conditions=terms_conditions,
+            pref_show_hsn_summary=pref_show_hsn_summary, pref_show_bank_details=pref_show_bank_details,
+            pref_show_terms=pref_show_terms, pref_show_notes=pref_show_notes, pref_show_signatory=pref_show_signatory,
+            **kwargs
+        )
 
     def __repr__(self):
         return f"<CompanySettings {self.name}>"
@@ -106,6 +131,21 @@ class Invoice(db.Model):
     # cascade='all, delete-orphan' ensures deleting an invoice cleans up all its items.
     items = db.relationship('InvoiceItem', backref='invoice', cascade='all, delete-orphan', lazy=True)
 
+    def __init__(self, invoice_number=None, customer_id=None, date_created=None, due_date=None, status='Unpaid',
+                 client_name=None, client_email=None, client_phone=None, client_address=None, client_gstin=None,
+                 gst_rate=18.0, discount=0.0, subtotal=None, tax_amount=None, cgst=0.0, sgst=0.0, igst=0.0,
+                 total_amount=None, notes=None, is_favorite=False, is_deleted=False, deleted_at=None,
+                 created_at=None, updated_at=None, **kwargs):
+        super().__init__(
+            invoice_number=invoice_number, customer_id=customer_id, date_created=date_created, due_date=due_date,
+            status=status, client_name=client_name, client_email=client_email, client_phone=client_phone,
+            client_address=client_address, client_gstin=client_gstin, gst_rate=gst_rate, discount=discount,
+            subtotal=subtotal, tax_amount=tax_amount, cgst=cgst, sgst=sgst, igst=igst, total_amount=total_amount,
+            notes=notes, is_favorite=is_favorite, is_deleted=is_deleted, deleted_at=deleted_at,
+            created_at=created_at, updated_at=updated_at,
+            **kwargs
+        )
+
     def __repr__(self):
         return f"<Invoice {self.invoice_number} - {self.client_name}>"
 
@@ -121,6 +161,16 @@ class ActivityLog(db.Model):
     action = db.Column(db.String(100), nullable=False)
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def __init__(self, invoice_id=None, invoice_number=None, action=None, details=None, created_at=None, **kwargs):
+        super().__init__(
+            invoice_id=invoice_id,
+            invoice_number=invoice_number,
+            action=action,
+            details=details,
+            created_at=created_at,
+            **kwargs
+        )
 
     def __repr__(self):
         return f"<ActivityLog {self.action} on {self.invoice_number}>"
@@ -140,6 +190,18 @@ class InvoiceItem(db.Model):
     hsn_sac = db.Column(db.String(50), nullable=True)
     total = db.Column(db.Float, nullable=False) # quantity * unit_price (stored for snapshot integrity)
 
+    def __init__(self, invoice_id=None, description=None, quantity=1, unit_price=None, tax_rate=18.0, hsn_sac=None, total=None, **kwargs):
+        super().__init__(
+            invoice_id=invoice_id,
+            description=description,
+            quantity=quantity,
+            unit_price=unit_price,
+            tax_rate=tax_rate,
+            hsn_sac=hsn_sac,
+            total=total,
+            **kwargs
+        )
+
     def __repr__(self):
         return f"<InvoiceItem {self.description} x{self.quantity}>"
 
@@ -155,6 +217,16 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     address = db.Column(db.Text, nullable=False)
     gstin = db.Column(db.String(15), nullable=True)
+
+    def __init__(self, name=None, email=None, phone=None, address=None, gstin=None, **kwargs):
+        super().__init__(
+            name=name,
+            email=email,
+            phone=phone,
+            address=address,
+            gstin=gstin,
+            **kwargs
+        )
 
     def __repr__(self):
         return f"<Customer {self.name}>"

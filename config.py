@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load local environment variables from .env if present
+load_dotenv()
 
 class Config:
     # Cryptographically secure random key for signing cookies and CSRF tokens.

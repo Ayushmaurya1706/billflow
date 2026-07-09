@@ -24,7 +24,7 @@ app.config.from_object(Config)
 # Hardened session cookies
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = not app.debug
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV', 'development') == 'production'
 
 # FIX: Bind SQLAlchemy to Flask app at module level so it works under
 # both 'python app.py' and 'flask run' / gunicorn deployments.
@@ -2859,4 +2859,5 @@ if __name__ == '__main__':
             print("="*60 + "\n")
             
     # Run dev server locally on port 5000
-    app.run(debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_ENV', 'development') != 'production'
+    app.run(debug=debug_mode, port=5000)
