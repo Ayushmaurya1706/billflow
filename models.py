@@ -21,6 +21,12 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    # Relationships for isolated multi-tenant workspaces
+    invoices = db.relationship('Invoice', backref='user', cascade='all, delete-orphan', lazy=True)
+    customers = db.relationship('Customer', backref='user', cascade='all, delete-orphan', lazy=True)
+    company_settings = db.relationship('CompanySettings', backref='user', cascade='all, delete-orphan', lazy=True)
+    activity_logs = db.relationship('ActivityLog', backref='user', cascade='all, delete-orphan', lazy=True)
+
     def __init__(self, full_name=None, company_name=None, email=None, phone=None, password_hash=None, created_at=None, updated_at=None, **kwargs):
         super().__init__(
             full_name=full_name,
@@ -41,9 +47,10 @@ class CompanySettings(db.Model):
     """
     Stores company-specific profile details.
     These are used to auto-populate the sender details on generated invoices.
-    There should typically only be one row in this table.
+    There should typically only be one row per user in this table.
     """
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     name = db.Column(db.String(150), nullable=False)
     logo_path = db.Column(db.String(255), nullable=True) # Rel path to logo in static/uploads
     gstin = db.Column(db.String(15), nullable=True)      # GST Registration Number
@@ -67,11 +74,12 @@ class CompanySettings(db.Model):
     pref_show_notes = db.Column(db.Boolean, default=True, nullable=False)
     pref_show_signatory = db.Column(db.Boolean, default=True, nullable=False)
 
-    def __init__(self, name=None, logo_path=None, gstin=None, address=None, email=None, phone=None,
+    def __init__(self, user_id=None, name=None, logo_path=None, gstin=None, address=None, email=None, phone=None,
                  bank_name=None, bank_account=None, bank_ifsc=None, bank_account_name=None, bank_branch=None,
                  upi_id=None, terms_conditions=None, pref_show_hsn_summary=True, pref_show_bank_details=True,
                  pref_show_terms=True, pref_show_notes=True, pref_show_signatory=True, **kwargs):
         super().__init__(
+            user_id=user_id,
             name=name, logo_path=logo_path, gstin=gstin, address=address, email=email, phone=phone,
             bank_name=bank_name, bank_account=bank_account, bank_ifsc=bank_ifsc, bank_account_name=bank_account_name,
             bank_branch=bank_branch, upi_id=upi_id, terms_conditions=terms_conditions,
@@ -90,8 +98,10 @@ class Invoice(db.Model):
     totals, status, and client details.
     """
     id = db.Column(db.Integer, primary_key=True)
-    # Unique invoice tracking number with index for fast database searches
-    invoice_number = db.Column(db.String(50), unique=True, index=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # Invoice tracking number with index for fast database searches (Scoped unique per user)
+    invoice_number = db.Column(db.String(50), index=True, nullable=False)
     
     # Customer Foreign Key Link (B2B preserved historical records via SET NULL)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id', ondelete='SET NULL'), nullable=True, index=True)
@@ -131,12 +141,17 @@ class Invoice(db.Model):
     # cascade='all, delete-orphan' ensures deleting an invoice cleans up all its items.
     items = db.relationship('InvoiceItem', backref='invoice', cascade='all, delete-orphan', lazy=True)
 
-    def __init__(self, invoice_number=None, customer_id=None, date_created=None, due_date=None, status='Unpaid',
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'invoice_number', name='uq_invoice_user_number'),
+    )
+
+    def __init__(self, user_id=None, invoice_number=None, customer_id=None, date_created=None, due_date=None, status='Unpaid',
                  client_name=None, client_email=None, client_phone=None, client_address=None, client_gstin=None,
                  gst_rate=18.0, discount=0.0, subtotal=None, tax_amount=None, cgst=0.0, sgst=0.0, igst=0.0,
                  total_amount=None, notes=None, is_favorite=False, is_deleted=False, deleted_at=None,
                  created_at=None, updated_at=None, **kwargs):
         super().__init__(
+            user_id=user_id,
             invoice_number=invoice_number, customer_id=customer_id, date_created=date_created, due_date=due_date,
             status=status, client_name=client_name, client_email=client_email, client_phone=client_phone,
             client_address=client_address, client_gstin=client_gstin, gst_rate=gst_rate, discount=discount,
@@ -156,14 +171,16 @@ class ActivityLog(db.Model):
     Preserves log history even if the source Invoice record is permanently deleted.
     """
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id', ondelete='SET NULL'), nullable=True, index=True)
     invoice_number = db.Column(db.String(50), nullable=False) # Preserved for history audit
     action = db.Column(db.String(100), nullable=False)
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
-    def __init__(self, invoice_id=None, invoice_number=None, action=None, details=None, created_at=None, **kwargs):
+    def __init__(self, user_id=None, invoice_id=None, invoice_number=None, action=None, details=None, created_at=None, **kwargs):
         super().__init__(
+            user_id=user_id,
             invoice_id=invoice_id,
             invoice_number=invoice_number,
             action=action,
@@ -209,17 +226,23 @@ class InvoiceItem(db.Model):
 class Customer(db.Model):
     """
     Customer model for catalog management.
-    Name is unique and indexed to allow selection and auto-completion.
+    Name is unique per user and indexed to allow selection and auto-completion.
     """
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), unique=True, index=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = db.Column(db.String(150), index=True, nullable=False)
     email = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
     address = db.Column(db.Text, nullable=False)
     gstin = db.Column(db.String(15), nullable=True)
 
-    def __init__(self, name=None, email=None, phone=None, address=None, gstin=None, **kwargs):
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'name', name='uq_customer_user_name'),
+    )
+
+    def __init__(self, user_id=None, name=None, email=None, phone=None, address=None, gstin=None, **kwargs):
         super().__init__(
+            user_id=user_id,
             name=name,
             email=email,
             phone=phone,

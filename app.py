@@ -61,19 +61,15 @@ def load_user(user_id):
 
 
 # 3. Secure Sequential Invoice Number Generator
-def get_next_invoice_number():
+def get_next_invoice_number(user_id):
     """
-    Generates a secure, sequential invoice number.
+    Generates a secure, sequential invoice number scoped per user.
     Format: INV-YYYY-NNNN (e.g. INV-2026-0001)
     """
     year = datetime.now(timezone.utc).year
-    # Fetch the last created invoice to determine sequence ID
-    last_invoice = Invoice.query.order_by(Invoice.id.desc()).first()
-    
-    if last_invoice:
-        next_sequence = last_invoice.id + 1
-    else:
-        next_sequence = 1
+    # Count total invoices created by the user (including soft deleted ones) to get the next sequential number
+    count = Invoice.query.filter_by(user_id=user_id).count()
+    next_sequence = count + 1
         
     return f"INV-{year}-{next_sequence:04d}"
 
@@ -252,12 +248,12 @@ def dashboard():
         return render_template('index.html')
         
     # UX Check: Redirect to settings if company is not configured yet
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     if not company:
         flash("Welcome to BillFlow! Please configure your company details first to start generating invoices.", "warning")
         return redirect(url_for('settings'))
         
-    invoices = Invoice.query.order_by(Invoice.date_created.desc(), Invoice.id.desc()).all()
+    invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.date_created.desc(), Invoice.id.desc()).all()
     
     # Calculate aggregate KPI statistics
     total_invoiced = sum(inv.total_amount for inv in invoices)
@@ -371,6 +367,7 @@ def api_reports_summary():
             else_=0
         )).label('cancelled_count')
     ).filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.date_created.between(start_date, end_date)
     ).first()
@@ -401,6 +398,7 @@ def api_reports_revenue():
         Invoice.date_created,
         db.func.sum(Invoice.total_amount)
     ).filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue']),
         Invoice.date_created.between(start_date, end_date)
@@ -423,6 +421,7 @@ def api_reports_invoice_status():
         Invoice.status,
         db.func.count(Invoice.id)
     ).filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.date_created.between(start_date, end_date)
     ).group_by(Invoice.status).all()
@@ -458,6 +457,7 @@ def api_reports_customers():
         db.func.max(Invoice.date_created).label('last_date')
     ).select_from(Customer)\
      .outerjoin(Invoice, (Invoice.customer_id == Customer.id) & (Invoice.is_deleted == False) & (Invoice.date_created.between(start_date, end_date)))\
+     .filter(Customer.user_id == current_user.id)\
      .group_by(Customer.id, Customer.name, Customer.email)\
      .order_by(db.desc('revenue')).all()
 
@@ -484,25 +484,30 @@ def reports_customer_profile(customer_id):
     customer = db.session.get(Customer, customer_id)
     if not customer:
         abort(404)
+    if customer.user_id != current_user.id:
+        abort(404)
 
     # Compute lifetime stats
     revenue = db.session.query(db.func.sum(Invoice.total_amount)).filter(
+        Invoice.user_id == current_user.id,
         Invoice.customer_id == customer_id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue'])
     ).scalar() or 0.0
 
     outstanding = db.session.query(db.func.sum(Invoice.total_amount)).filter(
+        Invoice.user_id == current_user.id,
         Invoice.customer_id == customer_id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Sent', 'Pending', 'Overdue', 'Unpaid'])
     ).scalar() or 0.0
 
     # Retrieve invoices
-    invoices = Invoice.query.filter_by(customer_id=customer_id, is_deleted=False).order_by(Invoice.date_created.desc()).all()
+    invoices = Invoice.query.filter_by(customer_id=customer_id, user_id=current_user.id, is_deleted=False).order_by(Invoice.date_created.desc()).all()
 
     # Revenue trend grouped by month (SQLite/PostgreSQL agnostic calculation in Python)
     trend_raw = db.session.query(Invoice.date_created, Invoice.total_amount).filter(
+        Invoice.user_id == current_user.id,
         Invoice.customer_id == customer_id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue'])
@@ -547,6 +552,7 @@ def api_reports_products():
         InvoiceItem.hsn_sac,
         InvoiceItem.total
     ).join(Invoice).filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue']),
         Invoice.date_created.between(start_date, end_date)
@@ -624,6 +630,7 @@ def api_reports_gst():
 
     # Query all active invoices in period
     invoices = Invoice.query.filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue']),
         Invoice.date_created.between(start_date, end_date)
@@ -677,7 +684,7 @@ def get_filtered_invoices_query():
     search, status, customer_id, from_date, to_date, favorites_only.
     Enforces that deleted invoices are excluded.
     """
-    query = Invoice.query.filter_by(is_deleted=False)
+    query = Invoice.query.filter_by(user_id=current_user.id, is_deleted=False)
     
     # Customer ID filter
     customer_id = request.args.get('customer_id', type=int)
@@ -780,6 +787,7 @@ def list_invoices():
             wb.close()
             
             log = ActivityLog(
+                user_id=current_user.id,
                 invoice_id=None,
                 invoice_number="EXPORTS",
                 action="Invoices Exported",
@@ -818,6 +826,7 @@ def list_invoices():
                     ])
                     
             log = ActivityLog(
+                user_id=current_user.id,
                 invoice_id=None,
                 invoice_number="EXPORTS",
                 action="Invoices Exported",
@@ -835,7 +844,7 @@ def list_invoices():
             
     # Favorites pinned first, then newest invoices first
     invoices = query.order_by(Invoice.is_favorite.desc(), Invoice.created_at.desc()).all()
-    customers = Customer.query.order_by(Customer.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
     today_date = datetime.now(timezone.utc).date()
     
     return render_template(
@@ -850,7 +859,7 @@ def list_invoices():
 @app.route('/invoices/trash')
 @login_required
 def trash_invoices():
-    invoices = Invoice.query.filter_by(is_deleted=True).order_by(Invoice.deleted_at.desc()).all()
+    invoices = Invoice.query.filter_by(user_id=current_user.id, is_deleted=True).order_by(Invoice.deleted_at.desc()).all()
     return render_template('invoices/trash.html', invoices=invoices)
 
 
@@ -861,11 +870,14 @@ def toggle_invoice_favorite(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
     invoice.is_favorite = not invoice.is_favorite
     
     # Log activity
     state = "Starred" if invoice.is_favorite else "Unstarred"
     log = ActivityLog(
+        user_id=current_user.id,
         invoice_id=invoice.id,
         invoice_number=invoice.invoice_number,
         action=f"Invoice {state}",
@@ -900,8 +912,10 @@ def view_invoice_details(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
-    company = CompanySettings.query.first()
-    logs = ActivityLog.query.filter_by(invoice_number=invoice.invoice_number).order_by(ActivityLog.created_at.desc()).all()
+    if invoice.user_id != current_user.id:
+        abort(404)
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
+    logs = ActivityLog.query.filter_by(invoice_number=invoice.invoice_number, user_id=current_user.id).order_by(ActivityLog.created_at.desc()).all()
     today_date = datetime.now(timezone.utc).date()
     
     # Calculate HSN groups if present
@@ -959,6 +973,8 @@ def update_invoice_status(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
     old_status = invoice.status
     new_status = request.form.get('status', '').strip()
@@ -970,6 +986,7 @@ def update_invoice_status(invoice_id):
     
     # Log activity
     log = ActivityLog(
+        user_id=current_user.id,
         invoice_id=invoice.id,
         invoice_number=invoice.invoice_number,
         action="Status Changed",
@@ -989,11 +1006,14 @@ def trash_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
     invoice.is_deleted = True
     invoice.deleted_at = datetime.now(timezone.utc)
     
     # Log activity
     log = ActivityLog(
+        user_id=current_user.id,
         invoice_id=invoice.id,
         invoice_number=invoice.invoice_number,
         action="Invoice Trashed",
@@ -1013,11 +1033,14 @@ def restore_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
     invoice.is_deleted = False
     invoice.deleted_at = None
     
     # Log activity
     log = ActivityLog(
+        user_id=current_user.id,
         invoice_id=invoice.id,
         invoice_number=invoice.invoice_number,
         action="Invoice Restored",
@@ -1037,6 +1060,8 @@ def delete_invoice_permanent(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
     num = invoice.invoice_number
     try:
@@ -1048,6 +1073,7 @@ def delete_invoice_permanent(invoice_id):
             
         # Log activity BEFORE deletion from DB (sets invoice_id to None but keeps number)
         log = ActivityLog(
+            user_id=current_user.id,
             invoice_id=None,
             invoice_number=num,
             action="Invoice Deleted Permanently",
@@ -1069,7 +1095,7 @@ def delete_invoice_permanent(invoice_id):
 @app.route('/invoices/activity-log')
 @login_required
 def activity_logs():
-    logs = ActivityLog.query.order_by(ActivityLog.created_at.desc()).all()
+    logs = ActivityLog.query.filter_by(user_id=current_user.id).order_by(ActivityLog.created_at.desc()).all()
     return render_template('invoices/activity_log.html', logs=logs)
 
 
@@ -1077,7 +1103,7 @@ def activity_logs():
 @app.route('/invoices/new', methods=['GET', 'POST'])
 @login_required
 def create_invoice():
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     if not company:
         flash("You must complete company settings before generating invoices.", "warning")
         return redirect(url_for('settings'))
@@ -1159,7 +1185,7 @@ def create_invoice():
         # Database Transaction Block
         try:
             # Generate the unique sequential invoice code
-            invoice_number = get_next_invoice_number()
+            invoice_number = get_next_invoice_number(current_user.id)
             
             # Form Dates
             date_created_str = request.form.get('date_created')
@@ -1183,6 +1209,7 @@ def create_invoice():
 
             # Create Invoice Object
             invoice = Invoice(
+                user_id=current_user.id,
                 invoice_number=invoice_number,
                 date_created=date_created,
                 due_date=due_date,
@@ -1204,7 +1231,7 @@ def create_invoice():
             )
             
             # Associate customer_id if exists in database
-            existing_customer = Customer.query.filter_by(name=client_name).first()
+            existing_customer = Customer.query.filter_by(name=client_name, user_id=current_user.id).first()
             if existing_customer:
                 invoice.customer_id = existing_customer.id
             
@@ -1217,6 +1244,7 @@ def create_invoice():
 
             # Create ActivityLog
             log = ActivityLog(
+                user_id=current_user.id,
                 invoice_id=invoice.id,
                 invoice_number=invoice.invoice_number,
                 action="Invoice Created",
@@ -1242,11 +1270,11 @@ def create_invoice():
             return redirect(url_for('create_invoice'))
 
     # GET route: Prefill calculations parameters
-    next_invoice_number = get_next_invoice_number()
+    next_invoice_number = get_next_invoice_number(current_user.id)
     today_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     default_due_date = (datetime.now(timezone.utc) + timedelta(days=15)).strftime('%Y-%m-%d')
     
-    customers = Customer.query.order_by(Customer.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
     
     return render_template(
         'create_invoice.html', 
@@ -1265,8 +1293,10 @@ def download_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     pdf_filename = f"{invoice.invoice_number}.pdf"
     pdf_path = os.path.join(SECURE_PDF_FOLDER, pdf_filename)
     
@@ -1297,8 +1327,10 @@ def email_invoice_pdf(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     pdf_filename = f"{invoice.invoice_number}.pdf"
     pdf_path = os.path.join(SECURE_PDF_FOLDER, pdf_filename)
     
@@ -1327,6 +1359,7 @@ def email_invoice_pdf(invoice_id):
         
         # Log mocked dispatch activity
         log = ActivityLog(
+            user_id=current_user.id,
             invoice_id=invoice.id,
             invoice_number=invoice.invoice_number,
             action="Email Simulation",
@@ -1372,6 +1405,7 @@ def email_invoice_pdf(invoice_id):
         
         # Log activity
         log = ActivityLog(
+            user_id=current_user.id,
             invoice_id=invoice.id,
             invoice_number=invoice.invoice_number,
             action="Email Sent",
@@ -1396,13 +1430,15 @@ def mark_paid(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
     try:
         invoice.status = 'Paid'
         db.session.commit()
         
         # Regenerate invoice PDF to reflect Paid stamp/status
-        company = CompanySettings.query.first()
+        company = CompanySettings.query.filter_by(user_id=current_user.id).first()
         pdf_path = os.path.join(SECURE_PDF_FOLDER, f"{invoice.invoice_number}.pdf")
         if company and os.path.exists(pdf_path):
             generate_invoice_pdf(invoice, company, pdf_path)
@@ -1421,6 +1457,8 @@ def mark_paid(invoice_id):
 def delete_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
+        abort(404)
+    if invoice.user_id != current_user.id:
         abort(404)
         
     invoice_number = invoice.invoice_number
@@ -1446,7 +1484,7 @@ def delete_invoice(invoice_id):
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
@@ -1533,6 +1571,7 @@ def settings():
                 company.pref_show_signatory = pref_show_signatory
             else:
                 company = CompanySettings(
+                    user_id=current_user.id,
                     name=name,
                     email=email,
                     phone=phone,
@@ -1586,12 +1625,13 @@ def customers():
 
         try:
             # Check unique name constraint
-            existing = Customer.query.filter_by(name=name).first()
+            existing = Customer.query.filter_by(name=name, user_id=current_user.id).first()
             if existing:
                 flash(f"A customer with the name '{name}' already exists.", "error")
                 return redirect(url_for('customers'))
 
             customer = Customer(
+                user_id=current_user.id,
                 name=name,
                 email=email,
                 phone=phone if phone else None,
@@ -1606,7 +1646,7 @@ def customers():
             db.session.rollback()
             flash(f"Failed to add customer: {e}", "error")
 
-    customers = Customer.query.order_by(Customer.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
     return render_template('customers.html', customers=customers)
 
 
@@ -1616,6 +1656,8 @@ def customers():
 def delete_customer(customer_id):
     customer = db.session.get(Customer, customer_id)
     if not customer:
+        abort(404)
+    if customer.user_id != current_user.id:
         abort(404)
     try:
         name = customer.name
@@ -1633,7 +1675,7 @@ def delete_customer(customer_id):
 @login_required
 def clear_customers():
     try:
-        db.session.query(Customer).delete()
+        db.session.query(Customer).filter_by(user_id=current_user.id).delete()
         db.session.commit()
         flash("Customer directory cleared successfully.", "success")
     except Exception as e:
@@ -1800,7 +1842,7 @@ def import_customers():
                     is_duplicate = True
                     skip_reason = f"Duplicate GSTIN in spreadsheet: '{gstin}'"
                 else:
-                    existing_gstin = Customer.query.filter(Customer.gstin.ilike(gstin)).first()
+                    existing_gstin = Customer.query.filter(Customer.gstin.ilike(gstin), Customer.user_id == current_user.id).first()
                     if existing_gstin:
                         is_duplicate = True
                         skip_reason = f"Customer with GSTIN '{gstin}' already exists in Directory (Company: '{existing_gstin.name}')."
@@ -1810,7 +1852,7 @@ def import_customers():
                     is_duplicate = True
                     skip_reason = f"Duplicate Company Name in spreadsheet: '{name}'"
                 else:
-                    existing_name = Customer.query.filter_by(name=name).first()
+                    existing_name = Customer.query.filter_by(name=name, user_id=current_user.id).first()
                     if existing_name:
                         is_duplicate = True
                         skip_reason = f"Customer with Company Name '{name}' already exists in Directory."
@@ -1821,6 +1863,7 @@ def import_customers():
                 continue
 
             customer = Customer(
+                user_id=current_user.id,
                 name=name,
                 email=email,
                 phone=phone if phone else None,
@@ -1925,7 +1968,7 @@ def bulk_create_customers():
                 if gstin.lower() in staged_gstins:
                     is_duplicate = True
                 else:
-                    existing_gstin = Customer.query.filter(Customer.gstin.ilike(gstin)).first()
+                    existing_gstin = Customer.query.filter(Customer.gstin.ilike(gstin), Customer.user_id == current_user.id).first()
                     if existing_gstin:
                         is_duplicate = True
             
@@ -1933,7 +1976,7 @@ def bulk_create_customers():
                 if name.lower() in staged_names:
                     is_duplicate = True
                 else:
-                    existing_name = Customer.query.filter_by(name=name).first()
+                    existing_name = Customer.query.filter_by(name=name, user_id=current_user.id).first()
                     if existing_name:
                         is_duplicate = True
             
@@ -1942,6 +1985,7 @@ def bulk_create_customers():
                 continue
 
             customer = Customer(
+                user_id=current_user.id,
                 name=name,
                 email=email,
                 phone=phone if phone else None,
@@ -1989,7 +2033,7 @@ def bulk_create_customers():
 @login_required
 def get_customer_json(customer_id):
     customer = db.session.get(Customer, customer_id)
-    if not customer:
+    if not customer or customer.user_id != current_user.id:
         return {'error': 'Customer not found'}, 404
         
     return {
@@ -2012,8 +2056,10 @@ def edit_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     if not company:
         flash("You must complete company settings before modifying invoices.", "warning")
         return redirect(url_for('settings'))
@@ -2099,7 +2145,7 @@ def edit_invoice(invoice_id):
                 invoice.due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
 
             # Calculate CGST, SGST, IGST based on State Codes (first 2 digits of GSTIN)
-            company = CompanySettings.query.first()
+            company = CompanySettings.query.filter_by(user_id=current_user.id).first()
             company_state = company.gstin[:2] if (company and company.gstin and len(company.gstin) >= 2) else None
             client_state = client_gstin[:2] if (client_gstin and len(client_gstin) >= 2) else None
             
@@ -2150,7 +2196,7 @@ def edit_invoice(invoice_id):
             flash("Failed to save changes. Please try again.", "error")
             return redirect(url_for('edit_invoice', invoice_id=invoice.id))
 
-    customers = Customer.query.order_by(Customer.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
     return render_template('edit_invoice.html', invoice=invoice, company=company, customers=customers)
 
 
@@ -2161,20 +2207,23 @@ def duplicate_invoice(invoice_id):
     invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(404)
+    if invoice.user_id != current_user.id:
+        abort(404)
         
-    company = CompanySettings.query.first()
+    company = CompanySettings.query.filter_by(user_id=current_user.id).first()
     if not company:
         flash("You must complete company settings first.", "warning")
         return redirect(url_for('settings'))
 
     try:
         # Generate new serial invoice code
-        new_invoice_number = get_next_invoice_number()
+        new_invoice_number = get_next_invoice_number(current_user.id)
         today = datetime.now(timezone.utc).date()
         due = today + timedelta(days=15)
 
         # Build duplicated instance
         duplicated_invoice = Invoice(
+            user_id=current_user.id,
             invoice_number=new_invoice_number,
             date_created=today,
             due_date=due,
@@ -2258,6 +2307,7 @@ def api_reports_revenue_comparison():
                 )), 0.0).label('revenue'),
                 db.func.count(Invoice.id).label('invoice_count')
             ).filter(
+                Invoice.user_id == current_user.id,
                 Invoice.is_deleted == False,
                 Invoice.date_created.between(start, end)
             ).first()
@@ -2491,6 +2541,7 @@ def export_report_revenue():
         db.func.sum(Invoice.tax_amount).label('total_tax'),
         db.func.sum(Invoice.subtotal).label('total_subtotal')
     ).filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue']),
         Invoice.date_created.between(start_date, end_date)
@@ -2583,6 +2634,7 @@ def export_report_customers():
         db.func.max(Invoice.date_created).label('last_date')
     ).select_from(Customer)\
      .outerjoin(Invoice, (Invoice.customer_id == Customer.id) & (Invoice.is_deleted == False) & (Invoice.date_created.between(start_date, end_date)))\
+     .filter(Customer.user_id == current_user.id)\
      .group_by(Customer.id, Customer.name, Customer.email)\
      .order_by(db.desc('revenue')).all()
 
@@ -2661,6 +2713,7 @@ def export_report_invoices():
         return jsonify({'success': False, 'message': str(e)}), 400
 
     invoices = Invoice.query.filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.date_created.between(start_date, end_date)
     ).order_by(Invoice.date_created.desc()).all()
@@ -2750,6 +2803,7 @@ def export_report_gst():
 
     # Same query as /api/reports/gst
     invoices = Invoice.query.filter(
+        Invoice.user_id == current_user.id,
         Invoice.is_deleted == False,
         Invoice.status.in_(['Paid', 'Sent', 'Pending', 'Overdue']),
         Invoice.date_created.between(start_date, end_date)

@@ -24,3 +24,7 @@ generated_invoices/
 .vscode/
 .idea/
 .DS_Store
+
+# Temporary exports
+exports/
+

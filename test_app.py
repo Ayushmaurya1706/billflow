@@ -46,7 +46,11 @@ class BillFlowTestCase(unittest.TestCase):
             password_hash=generate_password_hash(self.password)
         )
         
+        db.session.add(self.test_user)
+        db.session.commit()
+        
         self.test_company = CompanySettings(
+            user_id=1,
             name="Test Corp",
             email="billing@testcorp.com",
             phone="1234567890",
@@ -57,7 +61,6 @@ class BillFlowTestCase(unittest.TestCase):
             bank_ifsc="TEST0001234"
         )
         
-        db.session.add(self.test_user)
         db.session.add(self.test_company)
         db.session.commit()
 
@@ -282,7 +285,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Create 2 invoices manually
-        inv1 = Invoice(
+        inv1 = Invoice(user_id=1, 
             invoice_number="INV-2026-0001",
             due_date=datetime.now(timezone.utc).date(),
             client_name="Client A", client_email="a@a.com", client_address="Addr A",
@@ -293,7 +296,7 @@ class BillFlowTestCase(unittest.TestCase):
         
         # Generate next sequence via helper in controller
         from app import get_next_invoice_number
-        next_num = get_next_invoice_number()
+        next_num = get_next_invoice_number(1)
         self.assertEqual(next_num, "INV-2026-0002")
 
 
@@ -338,7 +341,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Create invoice to edit
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-9999",
             due_date=datetime.now(timezone.utc).date(),
             client_name="Original Client", client_email="o@o.com", client_address="Original Addr",
@@ -394,7 +397,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Create source invoice
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-0005",
             due_date=datetime.now(timezone.utc).date(),
             client_name="Cloned Client", client_email="c@c.com", client_address="Cloned Addr",
@@ -485,7 +488,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed duplicate customer with a GSTIN in database
-        cust_dup = Customer(name="Unique Company Name But Duplicate GSTIN", email="dup@dup.com", address="Dup Road", gstin="27GSTIN12345678")
+        cust_dup = Customer(user_id=1, name="Unique Company Name But Duplicate GSTIN", email="dup@dup.com", address="Dup Road", gstin="27GSTIN12345678")
         db.session.add(cust_dup)
         db.session.commit()
         
@@ -528,9 +531,9 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed 3 customers
-        db.session.add(Customer(name="Cust A", email="a@a.com", address="Addr A"))
-        db.session.add(Customer(name="Cust B", email="b@a.com", address="Addr B"))
-        db.session.add(Customer(name="Cust C", email="c@a.com", address="Addr C"))
+        db.session.add(Customer(user_id=1, name="Cust A", email="a@a.com", address="Addr A"))
+        db.session.add(Customer(user_id=1, name="Cust B", email="b@a.com", address="Addr B"))
+        db.session.add(Customer(user_id=1, name="Cust C", email="c@a.com", address="Addr C"))
         db.session.commit()
         self.assertEqual(Customer.query.count(), 3)
         
@@ -544,7 +547,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed invoices with distinct parameters
-        inv_paid = Invoice(
+        inv_paid = Invoice(user_id=1, 
             invoice_number="INV-2026-9991",
             date_created=datetime.strptime("2026-01-01", "%Y-%m-%d").date(),
             due_date=datetime.strptime("2026-01-15", "%Y-%m-%d").date(),
@@ -556,7 +559,7 @@ class BillFlowTestCase(unittest.TestCase):
             tax_amount=18.0,
             total_amount=118.0
         )
-        inv_unpaid = Invoice(
+        inv_unpaid = Invoice(user_id=1, 
             invoice_number="INV-2026-9992",
             date_created=datetime.strptime("2026-02-01", "%Y-%m-%d").date(),
             due_date=datetime.strptime("2026-02-15", "%Y-%m-%d").date(),
@@ -594,7 +597,7 @@ class BillFlowTestCase(unittest.TestCase):
         """Asserts that Excel and CSV exports generate and stream files from the exports/ directory."""
         self.login_client()
         
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-EXPORT-1",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -622,7 +625,7 @@ class BillFlowTestCase(unittest.TestCase):
     def test_soft_delete_and_restore(self):
         """Asserts soft deleting moves an invoice to trash, and restoring brings it back."""
         self.login_client()
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-TRASH-1",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -661,7 +664,7 @@ class BillFlowTestCase(unittest.TestCase):
     def test_permanent_delete(self):
         """Asserts permanent delete removes records from DB completely."""
         self.login_client()
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-PERM-1",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -689,7 +692,7 @@ class BillFlowTestCase(unittest.TestCase):
         """Asserts favorites can be toggled and sort correctly at the top of lists."""
         self.login_client()
         
-        inv_a = Invoice(
+        inv_a = Invoice(user_id=1, 
             invoice_number="INV-2026-FAV-A",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -702,7 +705,7 @@ class BillFlowTestCase(unittest.TestCase):
             total_amount=11.8,
             is_favorite=False
         )
-        inv_b = Invoice(
+        inv_b = Invoice(user_id=1, 
             invoice_number="INV-2026-FAV-B",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -741,7 +744,7 @@ class BillFlowTestCase(unittest.TestCase):
     def test_email_dispatch_simulation(self):
         """Asserts email dispatch redirects, logs simulator activities when SMTP is unconfigured."""
         self.login_client()
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-2026-MAIL-1",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -769,7 +772,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed test invoices
-        inv_paid = Invoice(
+        inv_paid = Invoice(user_id=1, 
             invoice_number="INV-2026-REP-1",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -781,7 +784,7 @@ class BillFlowTestCase(unittest.TestCase):
             tax_amount=18.0,
             total_amount=118.0
         )
-        inv_unpaid = Invoice(
+        inv_unpaid = Invoice(user_id=1, 
             invoice_number="INV-2026-REP-2",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -793,7 +796,7 @@ class BillFlowTestCase(unittest.TestCase):
             tax_amount=36.0,
             total_amount=236.0
         )
-        inv_cancelled = Invoice(
+        inv_cancelled = Invoice(user_id=1, 
             invoice_number="INV-2026-REP-3",
             date_created=datetime.now(timezone.utc).date(),
             due_date=datetime.now(timezone.utc).date(),
@@ -888,7 +891,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed company settings
-        company = CompanySettings(
+        company = CompanySettings(user_id=1, 
             name="Alpha Corp",
             email="alpha@corp.com",
             phone="12345",
@@ -942,7 +945,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed customer
-        cust = Customer(
+        cust = Customer(user_id=1, 
             name="Zeta Security",
             email="zeta@security.com",
             address="Zeta Office",
@@ -952,7 +955,7 @@ class BillFlowTestCase(unittest.TestCase):
         db.session.commit()
         
         # Seed Invoice linked to customer
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-ZETA-01",
             customer_id=cust.id,
             client_name="Zeta Security",
@@ -985,7 +988,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed customer
-        cust = Customer(
+        cust = Customer(user_id=1, 
             name="Theta Consulting",
             email="theta@consulting.com",
             address="Theta Office",
@@ -995,7 +998,7 @@ class BillFlowTestCase(unittest.TestCase):
         db.session.commit()
         
         # Seed Invoices (one Paid, one Pending)
-        inv1 = Invoice(
+        inv1 = Invoice(user_id=1, 
             invoice_number="INV-THETA-01",
             customer_id=cust.id,
             client_name="Theta Consulting",
@@ -1008,7 +1011,7 @@ class BillFlowTestCase(unittest.TestCase):
             tax_amount=90.0,
             total_amount=590.0
         )
-        inv2 = Invoice(
+        inv2 = Invoice(user_id=1, 
             invoice_number="INV-THETA-02",
             customer_id=cust.id,
             client_name="Theta Consulting",
@@ -1036,7 +1039,7 @@ class BillFlowTestCase(unittest.TestCase):
         self.login_client()
         
         # Seed Invoice with line items: 1 Product, 1 Service (starts with 99 SAC)
-        inv = Invoice(
+        inv = Invoice(user_id=1, 
             invoice_number="INV-PROD-01",
             client_name="Beta Client",
             client_email="beta@client.com",
@@ -1097,7 +1100,7 @@ class BillFlowTestCase(unittest.TestCase):
         
         # Seed Invoices
         # 1. Intrastate Invoice (CGST/SGST collected)
-        inv_intra = Invoice(
+        inv_intra = Invoice(user_id=1, 
             invoice_number="INV-GST-INTRA",
             client_name="Local Client",
             client_email="local@client.com",
@@ -1114,7 +1117,7 @@ class BillFlowTestCase(unittest.TestCase):
             total_amount=1180.0
         )
         # 2. Interstate Invoice (IGST collected)
-        inv_inter = Invoice(
+        inv_inter = Invoice(user_id=1, 
             invoice_number="INV-GST-INTER",
             client_name="Inter Client",
             client_email="inter@client.com",
@@ -1147,3 +1150,69 @@ class BillFlowTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+    # ==========================================================================
+    # MULTI-TENANCY ISOLATION TESTS
+    # ==========================================================================
+
+    def test_workspace_isolation_between_users(self):
+        """Asserts that User B cannot access or modify User A's data (multi-tenant isolation)."""
+        # Create a second user and log them in
+        from werkzeug.security import generate_password_hash
+        user2 = User(
+            full_name='Test Admin 2',
+            company_name='Test Corp 2',
+            email='testadmin2@billflow.com',
+            password_hash=generate_password_hash('TestPassword123')
+        )
+        db.session.add(user2)
+        db.session.commit()
+
+        # Log in User A and create an invoice
+        self.login_client()
+        inv_a = Invoice(user_id=self.test_user.id, 
+            invoice_number="INV-2026-AAAA",
+            due_date=datetime.now(timezone.utc).date(),
+            client_name="Client A", client_email="a@a.com", client_address="Addr A",
+            subtotal=100.0, tax_amount=18.0, total_amount=118.0
+        )
+        cust_a = Customer(user_id=self.test_user.id, 
+            name="Customer A",
+            email="a@a.com",
+            address="Addr A"
+        )
+        db.session.add(inv_a)
+        db.session.add(cust_a)
+        db.session.commit()
+
+        # Log out User A, log in User 2
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={
+            'email': 'testadmin2@billflow.com',
+            'password': 'TestPassword123'
+        }, follow_redirects=True)
+
+        # 1. Assert User 2 cannot see User A's invoice in list
+        res = self.client.get('/invoices')
+        self.assertNotIn(b"INV-2026-AAAA", res.data)
+
+        # 2. Assert User 2 cannot view details of User A's invoice
+        res = self.client.get(f'/invoices/{inv_a.id}')
+        self.assertEqual(res.status_code, 404)
+
+        # 3. Assert User 2 cannot download User A's invoice PDF
+        res = self.client.get(f'/invoices/{inv_a.id}/download')
+        self.assertEqual(res.status_code, 404)
+
+        # 4. Assert User 2 cannot toggle favorite on User A's invoice
+        res = self.client.post(f'/invoices/{inv_a.id}/favorite')
+        self.assertEqual(res.status_code, 404)
+
+        # 5. Assert User 2 cannot delete User A's invoice
+        res = self.client.post(f'/invoices/{inv_a.id}/delete')
+        self.assertEqual(res.status_code, 404)
+
+        # 6. Assert User 2 cannot view User A's customer details JSON
+        res = self.client.get(f'/api/customers/{cust_a.id}')
+        self.assertEqual(res.status_code, 404)
