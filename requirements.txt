@@ -1,5 +1,7 @@
 # Core Web Framework
 Flask
+python-dotenv
+
 
 # Database & Object Relational Mapper (ORM)
 Flask-SQLAlchemy
